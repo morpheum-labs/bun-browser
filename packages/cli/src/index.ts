@@ -31,7 +31,9 @@ import { siteCommand } from "./commands/site.js";
 import { historyCommand } from "./commands/history.js";
 import { setJqExpression } from "./client.js";
 
-const VERSION = "0.8.2";
+declare const __BB_BROWSER_VERSION__: string;
+
+const VERSION = __BB_BROWSER_VERSION__;
 
 const HELP_TEXT = `
 bb-browser - AI Agent 浏览器自动化工具

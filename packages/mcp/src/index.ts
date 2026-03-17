@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { z } from "zod";
 
+declare const __BB_BROWSER_VERSION__: string;
+
 const EXT_HINT = [
   "Chrome extension not connected.",
   "",
@@ -90,7 +92,7 @@ async function runCommand(request: Omit<Request, "id">) {
 }
 
 const server = new McpServer(
-  { name: "bb-browser", version: "0.4.0" },
+  { name: "bb-browser", version: __BB_BROWSER_VERSION__ },
   { instructions: `bb-browser lets you control the user's real Chrome browser — with their login state, cookies, and sessions.
 
 Your browser is the API. No headless browser, no cookie extraction, no anti-bot bypass.
