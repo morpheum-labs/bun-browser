@@ -86,6 +86,35 @@ let errorsEnabled = false;
 let traceRecording = false;
 const traceEvents: TraceEvent[] = [];
 
+function getContextFilePath(host: string, port: number): string {
+  const safeHost = host.replace(/[^a-zA-Z0-9_.-]/g, "_");
+  return path.join(os.tmpdir(), `bb-browser-cdp-context-${safeHost}-${port}.json`);
+}
+
+function loadPersistedCurrentTargetId(host: string, port: number): string | undefined {
+  try {
+    const data = JSON.parse(readFileSync(getContextFilePath(host, port), "utf-8")) as {
+      currentTargetId?: unknown;
+    };
+    return typeof data.currentTargetId === "string" && data.currentTargetId ? data.currentTargetId : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function persistCurrentTargetId(host: string, port: number, currentTargetId?: string): void {
+  try {
+    writeFileSync(getContextFilePath(host, port), JSON.stringify({ currentTargetId }));
+  } catch {}
+}
+
+function setCurrentTargetId(targetId?: string): void {
+  const state = connectionState;
+  if (!state) return;
+  state.currentTargetId = targetId;
+  persistCurrentTargetId(state.host, state.port, targetId);
+}
+
 function buildRequestError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
@@ -154,6 +183,7 @@ function createState(host: string, port: number, browserWsUrl: string, browserSo
     sessions: new Map(),
     attachedTargets: new Map(),
     refsByTarget: new Map(),
+    currentTargetId: loadPersistedCurrentTargetId(host, port),
     activeFrameIdByTarget: new Map(),
     dialogHandlers: new Map(),
   };
@@ -193,6 +223,10 @@ function createState(host: string, port: number, browserWsUrl: string, browserSo
           state.attachedTargets.delete(sessionId);
           state.activeFrameIdByTarget.delete(targetId);
           state.dialogHandlers.delete(targetId);
+          if (state.currentTargetId === targetId) {
+            state.currentTargetId = undefined;
+            persistCurrentTargetId(state.host, state.port, undefined);
+          }
         }
       }
       return;
@@ -431,6 +465,7 @@ async function ensurePageTarget(targetId?: string | number): Promise<CdpTargetIn
   const targets = (await getTargets()).filter((target) => target.type === "page");
   if (targets.length === 0) throw new Error("No page target found");
 
+  const persistedTargetId = targetId === undefined ? connectionState?.currentTargetId : undefined;
   let target: CdpTargetInfo | undefined;
   if (typeof targetId === "number") {
     target = targets[targetId] ?? targets.find((item) => Number(item.id) === targetId);
@@ -442,9 +477,11 @@ async function ensurePageTarget(targetId?: string | number): Promise<CdpTargetIn
         target = targets[numericTargetId] ?? targets.find((item) => Number(item.id) === numericTargetId);
       }
     }
+  } else if (persistedTargetId) {
+    target = targets.find((item) => item.id === persistedTargetId);
   }
   target ??= targets[0];
-  connectionState!.currentTargetId = target.id;
+  setCurrentTargetId(target.id);
   await attachTarget(target.id);
   return target;
 }
@@ -673,9 +710,14 @@ async function mouseClick(targetId: string, x: number, y: number): Promise<void>
 }
 
 async function getAttributeValue(targetId: string, backendNodeId: number, attribute: string): Promise<string> {
-  const nodeId = await resolveNode(targetId, backendNodeId);
   if (attribute === "text") {
-    return evaluate<string>(targetId, `(() => { const n = this; return n.innerText ?? n.textContent ?? ''; }).call(document.querySelector('[data-bb-node-id="${nodeId}"]'))`);
+    const resolved = await sessionCommand<{ object: { objectId: string } }>(targetId, "DOM.resolveNode", { backendNodeId });
+    const call = await sessionCommand<{ result: { value: string } }>(targetId, "Runtime.callFunctionOn", {
+      objectId: resolved.object.objectId,
+      functionDeclaration: `function() { return (this instanceof HTMLElement ? this.innerText : this.textContent || '').trim(); }`,
+      returnByValue: true,
+    });
+    return String(call.result.value ?? "");
   }
   const result = await sessionCommand<{ object: { objectId: string } }>(targetId, "DOM.resolveNode", { backendNodeId });
   const call = await sessionCommand<{ result: { value: string } }>(targetId, "Runtime.callFunctionOn", {
@@ -953,7 +995,14 @@ async function dispatchRequest(request: Request): Promise<Response> {
       return ok(request.id, { value: request.value });
     }
     case "get": {
-      if (!request.ref || !request.attribute) return fail(request.id, "Missing ref or attribute parameter");
+      if (!request.attribute) return fail(request.id, "Missing attribute parameter");
+      if (request.attribute === "url" && !request.ref) {
+        return ok(request.id, { value: await evaluate<string>(target.id, "location.href", true) });
+      }
+      if (request.attribute === "title" && !request.ref) {
+        return ok(request.id, { value: await evaluate<string>(target.id, "document.title", true) });
+      }
+      if (!request.ref) return fail(request.id, "Missing ref parameter");
       const value = await getAttributeValue(target.id, await parseRef(request.ref), request.attribute);
       return ok(request.id, { value });
     }
@@ -1016,7 +1065,7 @@ async function dispatchRequest(request: Request): Promise<Response> {
         ? tabs.find((item) => item.id === String(request.tabId) || Number(item.id) === request.tabId)
         : tabs[request.index ?? 0];
       if (!selected) return fail(request.id, "Tab not found");
-      connectionState!.currentTargetId = selected.id;
+      setCurrentTargetId(selected.id);
       await attachTarget(selected.id);
       return ok(request.id, { tabId: selected.id, url: selected.url, title: selected.title });
     }
@@ -1028,6 +1077,9 @@ async function dispatchRequest(request: Request): Promise<Response> {
       if (!selected) return fail(request.id, "Tab not found");
       await browserCommand("Target.closeTarget", { targetId: selected.id });
       connectionState?.refsByTarget.delete(selected.id);
+      if (connectionState?.currentTargetId === selected.id) {
+        setCurrentTargetId(undefined);
+      }
       clearPersistedRefs(selected.id);
       return ok(request.id, { tabId: selected.id });
     }
