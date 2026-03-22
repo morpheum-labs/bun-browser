@@ -973,7 +973,7 @@ async function dispatchRequest(request: Request): Promise<Response> {
     case "open": {
       if (!request.url) return fail(request.id, "Missing url parameter");
       if (request.tabId === undefined) {
-        const created = await browserCommand<{ targetId: string }>("Target.createTarget", { url: request.url });
+        const created = await browserCommand<{ targetId: string }>("Target.createTarget", { url: request.url, background: true });
         const newTarget = await ensurePageTarget(created.targetId);
         return ok(request.id, { url: request.url, tabId: newTarget.id });
       }
@@ -1087,7 +1087,7 @@ async function dispatchRequest(request: Request): Promise<Response> {
       return ok(request.id, { tabs, activeIndex: tabs.findIndex((tab) => tab.active) });
     }
     case "tab_new": {
-      const created = await browserCommand<{ targetId: string }>("Target.createTarget", { url: request.url ?? "about:blank" });
+      const created = await browserCommand<{ targetId: string }>("Target.createTarget", { url: request.url ?? "about:blank", background: true });
       return ok(request.id, { tabId: created.targetId, url: request.url ?? "about:blank" });
     }
     case "tab_select": {
