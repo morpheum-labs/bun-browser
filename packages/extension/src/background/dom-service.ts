@@ -1,5 +1,5 @@
 /**
- * DOM Service for bb-browser Extension
+ * DOM Service for bun-browser Extension
  * 
  * 封装 buildDomTree 的注入和调用逻辑，将 DOM 树转换为可访问性树文本格式。
  * 

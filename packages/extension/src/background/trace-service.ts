@@ -8,7 +8,7 @@
  * - 与 content script 通信
  */
 
-import type { TraceEvent, TraceStatus } from '@anthropic/bb-browser-shared';
+import type { TraceEvent, TraceStatus } from '@bun-browser/shared';
 
 // ============================================================================
 // 状态管理

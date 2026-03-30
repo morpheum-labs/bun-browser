@@ -2,7 +2,7 @@
  * errors 命令 - 查看 JS 错误
  */
 
-import { generateId } from "@bb-browser/shared";
+import { generateId } from "@bun-browser/shared";
 import { sendCommand } from "../client.js";
 
 interface ErrorsOptions {

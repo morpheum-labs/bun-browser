@@ -23,7 +23,7 @@ export default defineConfig({
     js: "#!/usr/bin/env node",
   },
   define: {
-    __BB_BROWSER_VERSION__: JSON.stringify(packageJson.version),
+    __BUN_BROWSER_VERSION__: JSON.stringify(packageJson.version),
   },
   // 全部 bundle 进去（npx 可用），只保留 ws（CommonJS 动态 require）
   noExternal: [/^(?!ws$).*/],

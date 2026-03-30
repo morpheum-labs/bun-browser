@@ -2,7 +2,7 @@
  * CDP 客户端 - 与 Chrome DevTools Protocol 通信
  */
 
-import type { Request, Response } from "@bb-browser/shared";
+import type { Request, Response } from "@bun-browser/shared";
 import { applyJq } from "./jq.js";
 import { sendCommand as sendCdpCommand } from "./cdp-client.js";
 import { monitorCommand } from "./monitor-manager.js";

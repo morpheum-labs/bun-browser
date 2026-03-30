@@ -1,5 +1,5 @@
 /**
- * bb-browser Background Service Worker
+ * bun-browser Background Service Worker
  *
  * 负责：
  * - 通过 SSE 连接 Daemon 接收命令
@@ -12,7 +12,7 @@ import { SSEClient } from './sse-client';
 import { handleCommand } from './command-handler';
 
 // 保活 Alarm 名称
-const KEEPALIVE_ALARM = 'bb-browser-keepalive';
+const KEEPALIVE_ALARM = 'bun-browser-keepalive';
 
 // 创建 SSE 客户端
 const sseClient = new SSEClient();
@@ -24,7 +24,7 @@ sseClient.onCommand(handleCommand);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes.upstreamUrl) {
     const newUrl = changes.upstreamUrl.newValue || 'default';
-    console.log('[bb-browser] Upstream URL changed to:', newUrl, '— reconnecting...');
+    console.log('[bun-browser] Upstream URL changed to:', newUrl, '— reconnecting...');
     sseClient.disconnect();
     sseClient.connect();
   }
@@ -32,7 +32,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // 监听来自 Content Script 的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('[bb-browser] Message from content script:', message, 'sender:', sender.tab?.id);
+  console.log('[bun-browser] Message from content script:', message, 'sender:', sender.tab?.id);
   sendResponse({ received: true });
   return true;
 });
@@ -49,17 +49,17 @@ async function setupKeepaliveAlarm() {
     periodInMinutes: 0.4, // 24 秒
   });
   
-  console.log('[bb-browser] Keepalive alarm set (every 24s)');
+  console.log('[bun-browser] Keepalive alarm set (every 24s)');
 }
 
 // Alarm 触发时检查并重连
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === KEEPALIVE_ALARM) {
-    console.log('[bb-browser] Keepalive alarm triggered, checking connection...');
+    console.log('[bun-browser] Keepalive alarm triggered, checking connection...');
     
     // 检查 SSE 连接状态，如果断开则重连
     if (!sseClient.isConnected()) {
-      console.log('[bb-browser] SSE disconnected, reconnecting...');
+      console.log('[bun-browser] SSE disconnected, reconnecting...');
       sseClient.connect();
     }
   }
@@ -67,7 +67,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 // 扩展安装/更新事件
 chrome.runtime.onInstalled.addListener((details) => {
-  console.log('[bb-browser] Extension installed/updated:', details.reason);
+  console.log('[bun-browser] Extension installed/updated:', details.reason);
   // 安装后自动连接
   sseClient.connect();
   setupKeepaliveAlarm();
@@ -75,12 +75,12 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // Service Worker 启动时连接
 chrome.runtime.onStartup.addListener(() => {
-  console.log('[bb-browser] Browser started, connecting to daemon...');
+  console.log('[bun-browser] Browser started, connecting to daemon...');
   sseClient.connect();
   setupKeepaliveAlarm();
 });
 
 // 立即尝试连接（处理扩展重载的情况）
-console.log('[bb-browser] Background service worker started, connecting to daemon...');
+console.log('[bun-browser] Background service worker started, connecting to daemon...');
 sseClient.connect();
 setupKeepaliveAlarm();

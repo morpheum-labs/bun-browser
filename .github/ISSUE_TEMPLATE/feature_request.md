@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an improvement for bb-browser
+about: Suggest an improvement for bun-browser
 title: "[Feature] "
 labels: ["enhancement"]
 ---
@@ -20,7 +20,7 @@ Describe the feature or behavior you want.
 ## Example Command Or Workflow / 示例命令或流程
 
 ```bash
-bb-browser ...
+bun-browser ...
 ```
 
 If possible, show the command, output shape, or user flow you expect.

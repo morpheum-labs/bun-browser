@@ -2,7 +2,7 @@
  * network 命令 - 网络监控和拦截
  */
 
-import { generateId } from "@bb-browser/shared";
+import { generateId } from "@bun-browser/shared";
 import { sendCommand } from "../client.js";
 
 interface NetworkOptions {

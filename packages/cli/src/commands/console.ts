@@ -2,7 +2,7 @@
  * console 命令 - 查看控制台消息
  */
 
-import { generateId } from "@bb-browser/shared";
+import { generateId } from "@bun-browser/shared";
 import { sendCommand } from "../client.js";
 
 interface ConsoleOptions {

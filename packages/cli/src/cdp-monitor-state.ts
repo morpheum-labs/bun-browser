@@ -11,7 +11,7 @@ import type {
   ConsoleMessageInfo,
   JSErrorInfo,
   TraceEvent,
-} from "@bb-browser/shared";
+} from "@bun-browser/shared";
 
 type JsonObject = Record<string, unknown>;
 

@@ -1,5 +1,5 @@
 {
-  "name": "@bb-browser/shared",
+  "name": "@bun-browser/shared",
   "version": "0.0.1",
   "type": "module",
   "exports": {
@@ -12,10 +12,10 @@
   "types": "./dist/index.d.ts",
   "files": ["dist"],
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "bunx --bun tsup",
+    "dev": "bunx --bun tsup --watch",
     "clean": "rm -rf dist",
-    "lint": "eslint src tsup.config.ts"
+    "lint": "bunx --bun eslint src tsup.config.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

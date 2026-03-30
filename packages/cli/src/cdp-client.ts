@@ -5,8 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import WebSocket from "ws";
-import type { Request, Response, ResponseData, TabInfo, SnapshotData, RefInfo, NetworkRequestInfo, ConsoleMessageInfo, JSErrorInfo, TraceEvent, TraceStatus } from "@bb-browser/shared";
-import { COMMAND_TIMEOUT } from "@bb-browser/shared";
+import type { Request, Response, ResponseData, TabInfo, SnapshotData, RefInfo, NetworkRequestInfo, ConsoleMessageInfo, JSErrorInfo, TraceEvent, TraceStatus } from "@bun-browser/shared";
+import { COMMAND_TIMEOUT } from "@bun-browser/shared";
 import { discoverCdpPort } from "./cdp-discovery.js";
 
 interface CdpTargetInfo {
@@ -88,7 +88,7 @@ const traceEvents: TraceEvent[] = [];
 
 function getContextFilePath(host: string, port: number): string {
   const safeHost = host.replace(/[^a-zA-Z0-9_.-]/g, "_");
-  return path.join(os.tmpdir(), `bb-browser-cdp-context-${safeHost}-${port}.json`);
+  return path.join(os.tmpdir(), `bun-browser-cdp-context-${safeHost}-${port}.json`);
 }
 
 function loadPersistedCurrentTargetId(host: string, port: number): string | undefined {
@@ -552,7 +552,7 @@ async function parseRef(ref: string): Promise<number> {
 }
 
 function getRefsFilePath(targetId: string): string {
-  return path.join(os.tmpdir(), `bb-browser-refs-${targetId}.json`);
+  return path.join(os.tmpdir(), `bun-browser-refs-${targetId}.json`);
 }
 
 function getCurrentTargetUrl(targetId: string): string | null {

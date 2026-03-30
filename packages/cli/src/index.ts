@@ -1,5 +1,5 @@
 /**
- * bb-browser CLI 入口
+ * bun-browser CLI 入口
  */
 
 import { fileURLToPath } from "node:url";
@@ -32,23 +32,24 @@ import { historyCommand } from "./commands/history.js";
 import { statusCommand } from "./commands/daemon.js";
 import { setJqExpression } from "./client.js";
 
-declare const __BB_BROWSER_VERSION__: string;
+declare const __BUN_BROWSER_VERSION__: string;
 
-const VERSION = __BB_BROWSER_VERSION__;
+const VERSION = __BUN_BROWSER_VERSION__;
 
 const HELP_TEXT = `
-bb-browser - AI Agent 浏览器自动化工具
+bun-browser - AI Agent 浏览器自动化工具
 
 安装：
-  npm install -g bb-browser
+  npm install -g bun-browser
+  bun add -g bun-browser
 
 提示：大多数数据获取任务请直接使用 site 命令，无需手动操作浏览器：
-  bb-browser site list                    查看所有可用命令
-  bb-browser site twitter/search "AI"     示例：搜索推文
-  bb-browser site xueqiu/hot-stock 5      示例：获取人气股票
+  bun-browser site list                    查看所有可用命令
+  bun-browser site twitter/search "AI"     示例：搜索推文
+  bun-browser site xueqiu/hot-stock 5      示例：获取人气股票
 
 用法：
-  bb-browser <command> [options]
+  bun-browser <command> [options]
 
 开始使用：
   site recommend               推荐你可能需要的 adapter（基于浏览历史）
@@ -57,7 +58,7 @@ bb-browser - AI Agent 浏览器自动化工具
   site <name> [args]           运行 adapter
   site update                  更新社区 adapter 库
   guide                        如何把任何网站变成 adapter
-  star                         ⭐ Star bb-browser on GitHub
+  star                         ⭐ Star bun-browser on GitHub
 
 浏览器操作：
   open <url> [--tab]           打开 URL
@@ -249,7 +250,7 @@ async function main(): Promise<void> {
         const url = parsed.args[0];
         if (!url) {
           console.error("错误：缺少 URL 参数");
-          console.error("用法：bb-browser open <url> [--tab current|<tabId>]");
+          console.error("用法：bun-browser open <url> [--tab current|<tabId>]");
           process.exit(1);
         }
         // 解析 --tab 参数
@@ -275,8 +276,8 @@ async function main(): Promise<void> {
         const ref = parsed.args[0];
         if (!ref) {
           console.error("错误：缺少 ref 参数");
-          console.error("用法：bb-browser click <ref>");
-          console.error("示例：bb-browser click @5");
+          console.error("用法：bun-browser click <ref>");
+          console.error("示例：bun-browser click @5");
           process.exit(1);
         }
         await clickCommand(ref, { json: parsed.flags.json, tabId: globalTabId });
@@ -287,8 +288,8 @@ async function main(): Promise<void> {
         const ref = parsed.args[0];
         if (!ref) {
           console.error("错误：缺少 ref 参数");
-          console.error("用法：bb-browser hover <ref>");
-          console.error("示例：bb-browser hover @5");
+          console.error("用法：bun-browser hover <ref>");
+          console.error("示例：bun-browser hover @5");
           process.exit(1);
         }
         await hoverCommand(ref, { json: parsed.flags.json, tabId: globalTabId });
@@ -299,8 +300,8 @@ async function main(): Promise<void> {
         const ref = parsed.args[0];
         if (!ref) {
           console.error("错误：缺少 ref 参数");
-          console.error("用法：bb-browser check <ref>");
-          console.error("示例：bb-browser check @5");
+          console.error("用法：bun-browser check <ref>");
+          console.error("示例：bun-browser check @5");
           process.exit(1);
         }
         await checkCommand(ref, { json: parsed.flags.json, tabId: globalTabId });
@@ -311,8 +312,8 @@ async function main(): Promise<void> {
         const ref = parsed.args[0];
         if (!ref) {
           console.error("错误：缺少 ref 参数");
-          console.error("用法：bb-browser uncheck <ref>");
-          console.error("示例：bb-browser uncheck @5");
+          console.error("用法：bun-browser uncheck <ref>");
+          console.error("示例：bun-browser uncheck @5");
           process.exit(1);
         }
         await uncheckCommand(ref, { json: parsed.flags.json, tabId: globalTabId });
@@ -324,14 +325,14 @@ async function main(): Promise<void> {
         const text = parsed.args[1];
         if (!ref) {
           console.error("错误：缺少 ref 参数");
-          console.error("用法：bb-browser fill <ref> <text>");
-          console.error('示例：bb-browser fill @3 "hello world"');
+          console.error("用法：bun-browser fill <ref> <text>");
+          console.error('示例：bun-browser fill @3 "hello world"');
           process.exit(1);
         }
         if (text === undefined) {
           console.error("错误：缺少 text 参数");
-          console.error("用法：bb-browser fill <ref> <text>");
-          console.error('示例：bb-browser fill @3 "hello world"');
+          console.error("用法：bun-browser fill <ref> <text>");
+          console.error('示例：bun-browser fill @3 "hello world"');
           process.exit(1);
         }
         await fillCommand(ref, text, { json: parsed.flags.json, tabId: globalTabId });
@@ -343,14 +344,14 @@ async function main(): Promise<void> {
         const text = parsed.args[1];
         if (!ref) {
           console.error("错误：缺少 ref 参数");
-          console.error("用法：bb-browser type <ref> <text>");
-          console.error('示例：bb-browser type @3 "append text"');
+          console.error("用法：bun-browser type <ref> <text>");
+          console.error('示例：bun-browser type @3 "append text"');
           process.exit(1);
         }
         if (text === undefined) {
           console.error("错误：缺少 text 参数");
-          console.error("用法：bb-browser type <ref> <text>");
-          console.error('示例：bb-browser type @3 "append text"');
+          console.error("用法：bun-browser type <ref> <text>");
+          console.error('示例：bun-browser type @3 "append text"');
           process.exit(1);
         }
         await typeCommand(ref, text, { json: parsed.flags.json, tabId: globalTabId });
@@ -362,14 +363,14 @@ async function main(): Promise<void> {
         const value = parsed.args[1];
         if (!ref) {
           console.error("错误：缺少 ref 参数");
-          console.error("用法：bb-browser select <ref> <value>");
-          console.error('示例：bb-browser select @4 "option1"');
+          console.error("用法：bun-browser select <ref> <value>");
+          console.error('示例：bun-browser select @4 "option1"');
           process.exit(1);
         }
         if (value === undefined) {
           console.error("错误：缺少 value 参数");
-          console.error("用法：bb-browser select <ref> <value>");
-          console.error('示例：bb-browser select @4 "option1"');
+          console.error("用法：bun-browser select <ref> <value>");
+          console.error('示例：bun-browser select @4 "option1"');
           process.exit(1);
         }
         await selectCommand(ref, value, { json: parsed.flags.json, tabId: globalTabId });
@@ -380,8 +381,8 @@ async function main(): Promise<void> {
         const script = parsed.args[0];
         if (!script) {
           console.error("错误：缺少 script 参数");
-          console.error("用法：bb-browser eval <script>");
-          console.error('示例：bb-browser eval "document.title"');
+          console.error("用法：bun-browser eval <script>");
+          console.error('示例：bun-browser eval "document.title"');
           process.exit(1);
         }
         await evalCommand(script, { json: parsed.flags.json, tabId: globalTabId });
@@ -392,9 +393,9 @@ async function main(): Promise<void> {
         const attribute = parsed.args[0] as GetAttribute | undefined;
         if (!attribute) {
           console.error("错误：缺少属性参数");
-          console.error("用法：bb-browser get <text|url|title> [ref]");
-          console.error("示例：bb-browser get text @5");
-          console.error("      bb-browser get url");
+          console.error("用法：bun-browser get <text|url|title> [ref]");
+          console.error("示例：bun-browser get text @5");
+          console.error("      bun-browser get url");
           process.exit(1);
         }
         if (!["text", "url", "title"].includes(attribute)) {
@@ -439,9 +440,9 @@ async function main(): Promise<void> {
         const target = parsed.args[0];
         if (!target) {
           console.error("错误：缺少等待目标参数");
-          console.error("用法：bb-browser wait <ms|@ref>");
-          console.error("示例：bb-browser wait 2000");
-          console.error("      bb-browser wait @5");
+          console.error("用法：bun-browser wait <ms|@ref>");
+          console.error("示例：bun-browser wait 2000");
+          console.error("      bun-browser wait @5");
           process.exit(1);
         }
         await waitCommand(target, { json: parsed.flags.json, tabId: globalTabId });
@@ -452,9 +453,9 @@ async function main(): Promise<void> {
         const key = parsed.args[0];
         if (!key) {
           console.error("错误：缺少 key 参数");
-          console.error("用法：bb-browser press <key>");
-          console.error("示例：bb-browser press Enter");
-          console.error("      bb-browser press Control+a");
+          console.error("用法：bun-browser press <key>");
+          console.error("示例：bun-browser press Enter");
+          console.error("      bun-browser press Control+a");
           process.exit(1);
         }
         await pressCommand(key, { json: parsed.flags.json, tabId: globalTabId });
@@ -466,9 +467,9 @@ async function main(): Promise<void> {
         const pixels = parsed.args[1]; // 传 string，scrollCommand 内部解析
         if (!direction) {
           console.error("错误：缺少方向参数");
-          console.error("用法：bb-browser scroll <up|down|left|right> [pixels]");
-          console.error("示例：bb-browser scroll down");
-          console.error("      bb-browser scroll up 500");
+          console.error("用法：bun-browser scroll <up|down|left|right> [pixels]");
+          console.error("示例：bun-browser scroll down");
+          console.error("      bun-browser scroll up 500");
           process.exit(1);
         }
         await scrollCommand(direction, pixels, { json: parsed.flags.json, tabId: globalTabId });
@@ -489,9 +490,9 @@ async function main(): Promise<void> {
         const selectorOrMain = parsed.args[0];
         if (!selectorOrMain) {
           console.error("错误：缺少 selector 参数");
-          console.error("用法：bb-browser frame <selector>");
-          console.error('示例：bb-browser frame "iframe#editor"');
-          console.error("      bb-browser frame main");
+          console.error("用法：bun-browser frame <selector>");
+          console.error('示例：bun-browser frame "iframe#editor"');
+          console.error("      bun-browser frame main");
           process.exit(1);
         }
         if (selectorOrMain === "main") {
@@ -506,10 +507,10 @@ async function main(): Promise<void> {
         const subCommand = parsed.args[0];
         if (!subCommand) {
           console.error("错误：缺少子命令");
-          console.error("用法：bb-browser dialog <accept|dismiss> [text]");
-          console.error("示例：bb-browser dialog accept");
-          console.error('      bb-browser dialog accept "my input"');
-          console.error("      bb-browser dialog dismiss");
+          console.error("用法：bun-browser dialog <accept|dismiss> [text]");
+          console.error("示例：bun-browser dialog accept");
+          console.error('      bun-browser dialog accept "my input"');
+          console.error("      bun-browser dialog dismiss");
           process.exit(1);
         }
         const promptText = parsed.args[1]; // accept 时可选的 prompt 文本
@@ -545,10 +546,10 @@ async function main(): Promise<void> {
         const subCmd = parsed.args[0] as 'start' | 'stop' | 'status' | undefined;
         if (!subCmd || !['start', 'stop', 'status'].includes(subCmd)) {
           console.error("错误：缺少或无效的子命令");
-          console.error("用法：bb-browser trace <start|stop|status>");
-          console.error("示例：bb-browser trace start");
-          console.error("      bb-browser trace stop");
-          console.error("      bb-browser trace status");
+          console.error("用法：bun-browser trace <start|stop|status>");
+          console.error("示例：bun-browser trace start");
+          console.error("      bun-browser trace stop");
+          console.error("      bun-browser trace status");
           process.exit(1);
         }
         await traceCommand(subCmd, { json: parsed.flags.json, tabId: globalTabId });
@@ -559,9 +560,9 @@ async function main(): Promise<void> {
         const subCmd = parsed.args[0] as 'search' | 'domains' | undefined;
         if (!subCmd || !['search', 'domains'].includes(subCmd)) {
           console.error("错误：缺少或无效的子命令");
-          console.error("用法：bb-browser history <search|domains> [query] [--days <n>]");
-          console.error("示例：bb-browser history search github");
-          console.error("      bb-browser history domains --days 7");
+          console.error("用法：bun-browser history <search|domains> [query] [--days <n>]");
+          console.error("示例：bun-browser history search github");
+          console.error("      bun-browser history domains --days 7");
           process.exit(1);
         }
         const query = parsed.args.slice(1).join(' ');
@@ -577,8 +578,8 @@ async function main(): Promise<void> {
         const fetchUrl = parsed.args[0];
         if (!fetchUrl) {
           console.error("[error] fetch: <url> is required.");
-          console.error("  Usage: bb-browser fetch <url> [--json] [--method POST] [--body '{...}']");
-          console.error("  Example: bb-browser fetch https://www.reddit.com/api/me.json --json");
+          console.error("  Usage: bun-browser fetch <url> [--json] [--method POST] [--body '{...}']");
+          console.error("  Example: bun-browser fetch https://www.reddit.com/api/me.json --json");
           process.exit(1);
         }
         // 解析 fetch 特有选项
@@ -621,7 +622,7 @@ async function main(): Promise<void> {
           console.error("  brew install gh && gh auth login");
           process.exit(1);
         }
-        const repos = ["epiral/bb-browser", "epiral/bb-sites"];
+        const repos = ["epiral/bun-browser", "epiral/bb-sites"];
         for (const repo of repos) {
           try {
             execSync(`gh api user/starred/${repo} -X PUT`, { stdio: "pipe" });
@@ -635,16 +636,16 @@ async function main(): Promise<void> {
       }
 
       case "guide": {
-        console.log(`How to turn any website into a bb-browser site adapter
+        console.log(`How to turn any website into a bun-browser site adapter
 =======================================================
 
 1. REVERSE ENGINEER the API
-   bb-browser network clear --tab <tabId>
-   bb-browser refresh --tab <tabId>
-   bb-browser network requests --filter "api" --with-body --json --tab <tabId>
+   bun-browser network clear --tab <tabId>
+   bun-browser refresh --tab <tabId>
+   bun-browser network requests --filter "api" --with-body --json --tab <tabId>
 
 2. TEST if direct fetch works (Tier 1)
-   bb-browser eval "fetch('/api/endpoint',{credentials:'include'}).then(r=>r.json())" --tab <tabId>
+   bun-browser eval "fetch('/api/endpoint',{credentials:'include'}).then(r=>r.json())" --tab <tabId>
 
    If it works → Tier 1 (Cookie auth, like Reddit/GitHub/Zhihu/Bilibili)
    If needs extra headers → Tier 2 (like Twitter: Bearer + CSRF token)
@@ -659,7 +660,7 @@ async function main(): Promise<void> {
      "domain": "www.example.com",
      "args": { "query": {"required": true, "description": "Search query"} },
      "readOnly": true,
-     "example": "bb-browser site platform/command value"
+     "example": "bun-browser site platform/command value"
    }
    */
    async function(args) {
@@ -670,8 +671,8 @@ async function main(): Promise<void> {
    }
 
 4. TEST it
-   Save to ~/.bb-browser/sites/platform/command.js (private, takes priority)
-   bb-browser site platform/command "test query" --json
+   Save to ~/.bun-browser/sites/platform/command.js (private, takes priority)
+   bun-browser site platform/command "test query" --json
 
 5. CONTRIBUTE
    Option A (with gh CLI):
@@ -681,23 +682,23 @@ async function main(): Promise<void> {
      git push -u origin feat-platform
      gh pr create --repo epiral/bb-sites
 
-   Option B (without gh CLI, using bb-browser itself):
-     bb-browser site github/fork epiral/bb-sites
+   Option B (without gh CLI, using bun-browser itself):
+     bun-browser site github/fork epiral/bb-sites
      git clone https://github.com/YOUR_USER/bb-sites && cd bb-sites
      git checkout -b feat-platform
      # add adapter files
      git push -u origin feat-platform
-     bb-browser site github/pr-create epiral/bb-sites --title "feat(platform): add adapters" --head "YOUR_USER:feat-platform"
+     bun-browser site github/pr-create epiral/bb-sites --title "feat(platform): add adapters" --head "YOUR_USER:feat-platform"
 
-Private adapters:  ~/.bb-browser/sites/<platform>/<command>.js
-Community:         ~/.bb-browser/bb-sites/ (via bb-browser site update)
+Private adapters:  ~/.bun-browser/sites/<platform>/<command>.js
+Community:         ~/.bun-browser/bb-sites/ (via bun-browser site update)
 Full guide:        https://github.com/epiral/bb-sites/blob/main/SKILL.md`);
         break;
       }
 
       default: {
         console.error(`错误：未知命令 "${parsed.command}"`);
-        console.error("运行 bb-browser --help 查看可用命令");
+        console.error("运行 bun-browser --help 查看可用命令");
         process.exit(1);
       }
     }

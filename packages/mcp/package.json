@@ -1,15 +1,15 @@
 {
-  "name": "@bb-browser/mcp",
+  "name": "@bun-browser/mcp",
   "version": "0.0.1",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "lint": "eslint src tsup.config.ts"
+    "build": "bunx --bun tsup",
+    "dev": "bunx --bun tsup --watch",
+    "lint": "bunx --bun eslint src tsup.config.ts"
   },
   "dependencies": {
-    "@bb-browser/shared": "workspace:*",
+    "@bun-browser/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "zod": "^3.24.1"
   },

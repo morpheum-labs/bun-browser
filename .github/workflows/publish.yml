@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag (e.g. bb-browser-v0.10.0)"
+        description: "Release tag (e.g. bun-browser-v0.10.0)"
         required: true
         type: string
 
@@ -23,35 +23,34 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: 9.15.0
+          bun-version: 1.3.10
 
-      - name: Set up Node.js
+      - name: Set up Node.js (npm publish auth)
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Build
-        run: pnpm build
+        run: bun run build
 
       - name: Package extension
         run: |
           cd extension
-          zip -r "../bb-browser-extension-${{ inputs.tag_name }}.zip" .
+          zip -r "../bun-browser-extension-${{ inputs.tag_name }}.zip" .
 
       - name: Upload extension asset
-        run: gh release upload "${{ inputs.tag_name }}" "bb-browser-extension-${{ inputs.tag_name }}.zip" --clobber
+        run: gh release upload "${{ inputs.tag_name }}" "bun-browser-extension-${{ inputs.tag_name }}.zip" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to npm
-        run: pnpm publish --no-git-checks
+        run: npm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

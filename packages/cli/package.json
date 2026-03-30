@@ -1,24 +1,23 @@
 {
-  "name": "@bb-browser/cli",
+  "name": "@bun-browser/cli",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "bb-browser": "./dist/index.js"
+    "bun-browser": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "test": "tsx --test src/openclaw-json.test.ts src/openclaw-bridge.test.ts"
+    "build": "bunx --bun tsup",
+    "dev": "bunx --bun tsup --watch",
+    "test": "bun test src/openclaw-json.test.ts src/openclaw-bridge.test.ts"
   },
   "dependencies": {
-    "@bb-browser/shared": "workspace:*"
+    "@bun-browser/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "tsx": "^4.20.6",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0",
     "ws": "^8.19.0"

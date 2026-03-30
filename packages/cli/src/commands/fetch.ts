@@ -2,16 +2,16 @@
  * fetch 命令 - 在浏览器上下文中执行 fetch()，自动处理同源路由
  *
  * 用法：
- *   bb-browser fetch <url> [options]
- *   bb-browser fetch https://www.reddit.com/api/me.json
- *   bb-browser fetch /api/me.json                     # 相对路径，用当前 tab 的 origin
- *   bb-browser fetch https://www.reddit.com/... --json
- *   bb-browser fetch https://x.com/... --method POST --body '{"query":"..."}'
+ *   bun-browser fetch <url> [options]
+ *   bun-browser fetch https://www.reddit.com/api/me.json
+ *   bun-browser fetch /api/me.json                     # 相对路径，用当前 tab 的 origin
+ *   bun-browser fetch https://www.reddit.com/... --json
+ *   bun-browser fetch https://x.com/... --method POST --body '{"query":"..."}'
  *
  * 本质：curl，但带浏览器登录态。
  */
 
-import { generateId, type Request, type Response, type TabInfo } from "@bb-browser/shared";
+import { generateId, type Request, type Response, type TabInfo } from "@bun-browser/shared";
 import { sendCommand } from "../client.js";
 import { ensureDaemonRunning } from "../daemon-manager.js";
 
@@ -113,8 +113,8 @@ export async function fetchCommand(
   if (!url) {
     throw new Error(
       "缺少 URL 参数\n" +
-      "  用法: bb-browser fetch <url> [--json] [--method POST] [--body '{...}']\n" +
-      "  示例: bb-browser fetch https://www.reddit.com/api/me.json --json"
+      "  用法: bun-browser fetch <url> [--json] [--method POST] [--body '{...}']\n" +
+      "  示例: bun-browser fetch https://www.reddit.com/api/me.json --json"
     );
   }
 

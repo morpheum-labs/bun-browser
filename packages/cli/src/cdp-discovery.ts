@@ -6,7 +6,7 @@ import path from "node:path";
 import { parseOpenClawJson } from "./openclaw-json.js";
 
 const DEFAULT_CDP_PORT = 19825;
-const MANAGED_BROWSER_DIR = path.join(os.homedir(), ".bb-browser", "browser");
+const MANAGED_BROWSER_DIR = path.join(os.homedir(), ".bun-browser", "browser");
 const MANAGED_USER_DATA_DIR = path.join(MANAGED_BROWSER_DIR, "user-data");
 const MANAGED_PORT_FILE = path.join(MANAGED_BROWSER_DIR, "cdp-port");
 
@@ -122,15 +122,15 @@ export async function launchManagedBrowser(port: number = DEFAULT_CDP_PORT): Pro
 
   await mkdir(MANAGED_USER_DATA_DIR, { recursive: true });
 
-  // Set profile name so the Chrome window shows "bb-browser" in the title bar
+  // Set profile name so the Chrome window shows "bun-browser" in the title bar
   const defaultProfileDir = path.join(MANAGED_USER_DATA_DIR, "Default");
   const prefsPath = path.join(defaultProfileDir, "Preferences");
   await mkdir(defaultProfileDir, { recursive: true });
   try {
     let prefs: Record<string, unknown> = {};
     try { prefs = JSON.parse(await readFile(prefsPath, "utf8")); } catch {}
-    if (!(prefs.profile as Record<string, unknown>)?.name || (prefs.profile as Record<string, unknown>).name !== "bb-browser") {
-      prefs.profile = { ...(prefs.profile as Record<string, unknown> || {}), name: "bb-browser" };
+    if (!(prefs.profile as Record<string, unknown>)?.name || (prefs.profile as Record<string, unknown>).name !== "bun-browser") {
+      prefs.profile = { ...(prefs.profile as Record<string, unknown> || {}), name: "bun-browser" };
       await writeFile(prefsPath, JSON.stringify(prefs), "utf8");
     }
   } catch {}

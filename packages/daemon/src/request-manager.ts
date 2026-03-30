@@ -7,8 +7,8 @@
  * - 匹配请求和响应
  */
 
-import type { Response } from "@bb-browser/shared";
-import { COMMAND_TIMEOUT } from "@bb-browser/shared";
+import type { Response } from "@bun-browser/shared";
+import { COMMAND_TIMEOUT } from "@bun-browser/shared";
 
 interface PendingRequest {
   resolve: (response: Response) => void;

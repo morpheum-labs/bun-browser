@@ -1,12 +1,12 @@
 /**
  * get 命令 - 获取页面或元素信息
  * 用法：
- *   bb-browser get text <ref>  获取元素文本
- *   bb-browser get url         获取当前页面 URL
- *   bb-browser get title       获取页面标题
+ *   bun-browser get text <ref>  获取元素文本
+ *   bun-browser get url         获取当前页面 URL
+ *   bun-browser get title       获取页面标题
  */
 
-import { generateId, type Request, type Response } from "@bb-browser/shared";
+import { generateId, type Request, type Response } from "@bun-browser/shared";
 import { sendCommand } from "../client.js";
 import { ensureDaemonRunning } from "../daemon-manager.js";
 

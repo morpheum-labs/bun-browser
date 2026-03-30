@@ -1,11 +1,11 @@
 {
-  "name": "@bb-browser/extension",
+  "name": "@bun-browser/extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch --mode development",
-    "build": "vite build"
+    "dev": "bunx --bun vite build --watch --mode development",
+    "build": "bunx --bun vite build"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",

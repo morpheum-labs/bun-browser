@@ -1,21 +1,21 @@
 {
-  "name": "@bb-browser/daemon",
+  "name": "@bun-browser/daemon",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "bin": {
-    "bb-browser-daemon": "./dist/index.js"
+    "bun-browser-daemon": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "lint": "eslint src tsup.config.ts",
+    "build": "bunx --bun tsup",
+    "dev": "bunx --bun tsup --watch",
+    "lint": "bunx --bun eslint src tsup.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@bb-browser/shared": "workspace:*"
+    "@bun-browser/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

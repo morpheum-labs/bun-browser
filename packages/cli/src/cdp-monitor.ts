@@ -16,7 +16,7 @@ import { mkdir, writeFile, unlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import WebSocket from "ws";
-import type { Request, Response, ResponseData, TraceStatus } from "@bb-browser/shared";
+import type { Request, Response, ResponseData, TraceStatus } from "@bun-browser/shared";
 import { MonitorState } from "./cdp-monitor-state.js";
 
 // ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ if (!AUTH_TOKEN) {
 // Paths
 // ---------------------------------------------------------------------------
 
-const MONITOR_DIR = path.join(os.homedir(), ".bb-browser");
+const MONITOR_DIR = path.join(os.homedir(), ".bun-browser");
 const PID_FILE = path.join(MONITOR_DIR, "monitor.pid");
 const PORT_FILE = path.join(MONITOR_DIR, "monitor.port");
 const TOKEN_FILE = path.join(MONITOR_DIR, "monitor.token");

@@ -1,5 +1,5 @@
 /**
- * Command Handler for bb-browser Extension
+ * Command Handler for bun-browser Extension
  * 处理从 Daemon 接收的命令
  * 
  * v2.0: 使用 CDP (chrome.debugger) 实现所有 DOM 操作

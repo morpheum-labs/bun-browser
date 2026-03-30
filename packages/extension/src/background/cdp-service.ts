@@ -1,5 +1,5 @@
 /**
- * CDP Service for bb-browser Extension
+ * CDP Service for bun-browser Extension
  * 
  * 封装 chrome.debugger API，提供统一的 CDP 调用接口。
  * 所有 DOM 操作、输入模拟、脚本执行都通过这个服务层进行。

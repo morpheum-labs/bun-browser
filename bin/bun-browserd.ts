@@ -20,14 +20,14 @@ declare const process: {
 
 const DEFAULT_PINIX_URL = "http://127.0.0.1:9000";
 const DEFAULT_CLIP_NAME = "browser";
-const PROVIDER_NAME_PREFIX = "bb-browserd";
+const PROVIDER_NAME_PREFIX = "bun-browserd";
 const CLIP_PACKAGE = "browser";
 const CLIP_DOMAIN = "浏览器";
 const RECONNECT_DELAY_MS = 5000;
 const REGISTER_TIMEOUT_MS = 10000;
 const HEARTBEAT_INTERVAL_MS = 15000;
 const DEFAULT_CDP_PORT = 19825;
-const CDP_PORT_FILE = join(homedir(), ".bb-browser", "browser", "cdp-port");
+const CDP_PORT_FILE = join(homedir(), ".bun-browser", "browser", "cdp-port");
 const WAIT_POLL_INTERVAL = 200;
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -460,12 +460,12 @@ function findBrowserExecutable(): string | null {
 async function launchManagedBrowser(port: number): Promise<boolean> {
   const executable = findBrowserExecutable();
   if (!executable) {
-    console.log("[bb-browserd] No browser executable found, cannot auto-launch");
+    console.log("[bun-browserd] No browser executable found, cannot auto-launch");
     return false;
   }
-  const userDataDir = join(homedir(), ".bb-browser", "browser", "chrome-data");
+  const userDataDir = join(homedir(), ".bun-browser", "browser", "chrome-data");
   await mkdir(userDataDir, { recursive: true });
-  console.log(`[bb-browserd] Launching browser: ${path.basename(executable)} on port ${port}`);
+  console.log(`[bun-browserd] Launching browser: ${path.basename(executable)} on port ${port}`);
   try {
     const child = spawn(executable, [
       `--remote-debugging-port=${port}`,
@@ -483,14 +483,14 @@ async function launchManagedBrowser(port: number): Promise<boolean> {
   const deadline = Date.now() + 10000;
   while (Date.now() < deadline) {
     if (await canConnect(port)) {
-      await mkdir(join(homedir(), ".bb-browser", "browser"), { recursive: true });
-      await writeFile(join(homedir(), ".bb-browser", "browser", "cdp-port"), String(port), "utf8");
-      console.log(`[bb-browserd] Browser launched, CDP ready on port ${port}`);
+      await mkdir(join(homedir(), ".bun-browser", "browser"), { recursive: true });
+      await writeFile(join(homedir(), ".bun-browser", "browser", "cdp-port"), String(port), "utf8");
+      console.log(`[bun-browserd] Browser launched, CDP ready on port ${port}`);
       return true;
     }
     await new Promise(r => setTimeout(r, 300));
   }
-  console.log("[bb-browserd] Browser launched but CDP not ready within timeout");
+  console.log("[bun-browserd] Browser launched but CDP not ready within timeout");
   return false;
 }
 
@@ -521,7 +521,7 @@ async function ensureCdp(): Promise<void> {
     const ws = new WebSocket(wsUrl);
     ws.onopen = () => {
       cdpSocket = ws;
-      console.log(`[bb-browserd] CDP connected to ${wsUrl}`);
+      console.log(`[bun-browserd] CDP connected to ${wsUrl}`);
       resolve();
     };
     ws.onerror = () => reject(new Error("CDP WebSocket connection failed"));
@@ -557,7 +557,7 @@ async function ensureCdp(): Promise<void> {
       cdpSocket = null;
       cdpSessionId = null;
       cdpTargetId = null;
-      console.error("[bb-browserd] CDP disconnected");
+      console.error("[bun-browserd] CDP disconnected");
     };
   });
 
@@ -574,7 +574,7 @@ async function ensureCdp(): Promise<void> {
   });
   cdpSessionId = attachResult.sessionId;
   cdpTargetId = page.id;
-  console.log(`[bb-browserd] Attached to target: ${page.title} (${page.url})`);
+  console.log(`[bun-browserd] Attached to target: ${page.title} (${page.url})`);
 }
 
 function cdpBrowserCommand<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
@@ -729,7 +729,7 @@ async function executeCommand(command: CapabilityCommand, input: InputObject): P
 // Helpers
 
 function printUsage(): void {
-  console.log(`Usage: bun run bin/bb-browserd.ts [--pinix <url>] [--name <name>]
+  console.log(`Usage: bun run bin/bun-browserd.ts [--pinix <url>] [--name <name>]
 
 Options:
   --pinix <url>  Pinix Hub base URL (default: ${DEFAULT_PINIX_URL})
@@ -983,7 +983,7 @@ function createManageUnsupportedMessage(requestId: string): ProviderMessage {
         requestId,
         error: {
           code: "permission_denied",
-          message: "manage operations are not supported by bb-browserd",
+          message: "manage operations are not supported by bun-browserd",
         },
       },
     },
@@ -1042,13 +1042,13 @@ class PinixBridge {
         if (this.stopped) {
           return;
         }
-        console.error(`[bb-browserd] Provider stream error: ${formatError(error)}`);
+        console.error(`[bun-browserd] Provider stream error: ${formatError(error)}`);
         this.scheduleReconnect();
       });
   }
 
   private async runStream(): Promise<void> {
-    console.log(`[bb-browserd] Connecting to ${this.options.pinixUrl}`);
+    console.log(`[bun-browserd] Connecting to ${this.options.pinixUrl}`);
 
     const abortController = new AbortController();
     this.abortController = abortController;
@@ -1101,9 +1101,9 @@ class PinixBridge {
 
             registerAccepted = true;
             this.clearReconnectTimer();
-            console.log(`[bb-browserd] Connected to pinixd at ${this.options.pinixUrl}`);
+            console.log(`[bun-browserd] Connected to pinixd at ${this.options.pinixUrl}`);
             console.log(
-              `[bb-browserd] Registered clip "${this.options.name}" via provider "${getProviderName(this.options.name)}" with commands: ${CAPABILITIES.join(", ")}`,
+              `[bun-browserd] Registered clip "${this.options.name}" via provider "${getProviderName(this.options.name)}" with commands: ${CAPABILITIES.join(", ")}`,
             );
             break;
           }
@@ -1179,7 +1179,7 @@ class PinixBridge {
     const requestId = message.requestId?.trim();
     const hasData = Boolean(message.data && message.data.length > 0);
     if (requestId && (hasData || message.done === true)) {
-      console.warn(`[bb-browserd] Ignoring InvokeInput for unary browser command: ${requestId}`);
+      console.warn(`[bun-browserd] Ignoring InvokeInput for unary browser command: ${requestId}`);
     }
   }
 
@@ -1188,7 +1188,7 @@ class PinixBridge {
       queue.push(message);
     } catch (error) {
       if (!this.stopped) {
-        console.error(`[bb-browserd] Failed to send provider message: ${formatError(error)}`);
+        console.error(`[bun-browserd] Failed to send provider message: ${formatError(error)}`);
       }
     }
   }
@@ -1197,7 +1197,7 @@ class PinixBridge {
     if (this.reconnectTimer || this.stopped) {
       return;
     }
-    console.log(`[bb-browserd] Reconnecting in ${RECONNECT_DELAY_MS}ms`);
+    console.log(`[bun-browserd] Reconnecting in ${RECONNECT_DELAY_MS}ms`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
@@ -1225,10 +1225,10 @@ function installProcessHandlers(bridge: PinixBridge): void {
     process.exit(0);
   });
   process.on("unhandledRejection", (reason) => {
-    console.error(`[bb-browserd] Unhandled rejection: ${formatError(reason)}`);
+    console.error(`[bun-browserd] Unhandled rejection: ${formatError(reason)}`);
   });
   process.on("uncaughtException", (error) => {
-    console.error(`[bb-browserd] Uncaught exception: ${formatError(error)}`);
+    console.error(`[bun-browserd] Uncaught exception: ${formatError(error)}`);
   });
 }
 
@@ -1242,6 +1242,6 @@ function main(): void {
 try {
   main();
 } catch (error) {
-  console.error(`[bb-browserd] ${formatError(error)}`);
+  console.error(`[bun-browserd] ${formatError(error)}`);
   process.exit(1);
 }

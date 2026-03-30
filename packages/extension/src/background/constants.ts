@@ -1,5 +1,5 @@
 /**
- * bb-browser Extension Constants
+ * bun-browser Extension Constants
  */
 
 export const DEFAULT_DAEMON_PORT = 19824;

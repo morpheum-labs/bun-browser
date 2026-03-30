@@ -1,5 +1,5 @@
 {
-  "name": "@pinix/browser",
+  "name": "bun-browser",
   "version": "0.10.1",
   "description": "Browser Edge Clip — 浏览器自动化能力",
   "runtime": "bun",

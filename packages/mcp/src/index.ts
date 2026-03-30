@@ -1,19 +1,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { DAEMON_BASE_URL, COMMAND_TIMEOUT, generateId } from "@bb-browser/shared";
-import type { Request, Response } from "@bb-browser/shared";
+import { DAEMON_BASE_URL, COMMAND_TIMEOUT, generateId } from "@bun-browser/shared";
+import type { Request, Response } from "@bun-browser/shared";
 import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { z } from "zod";
 
-declare const __BB_BROWSER_VERSION__: string;
+declare const __BUN_BROWSER_VERSION__: string;
 
 const EXT_HINT = [
   "Chrome extension not connected.",
   "",
-  "1. Download extension: https://github.com/epiral/bb-browser/releases/latest",
+  "1. Download extension: https://github.com/epiral/bun-browser/releases/latest",
   "2. Unzip the downloaded file",
   "3. Open chrome://extensions/ → Enable Developer Mode",
   "4. Click \"Load unpacked\" → select the unzipped folder",
@@ -76,7 +76,7 @@ async function sendCommand(request: Request): Promise<Response> {
     return (await response.json()) as Response;
   } catch {
     clearTimeout(timeoutId);
-    return { id: request.id, success: false, error: "Failed to start daemon. Run manually: bb-browser daemon" };
+    return { id: request.id, success: false, error: "Failed to start daemon. Run manually: bun-browser daemon" };
   }
 }
 
@@ -177,7 +177,7 @@ function formatSiteCliError(value: unknown, stderr: string, stdout: string): str
   }
 
   const fallback = [stderr.trim(), stdout.trim()].find(Boolean);
-  return fallback || "bb-browser site command failed";
+  return fallback || "bun-browser site command failed";
 }
 
 async function runSiteCli(args: string[]): Promise<unknown> {
@@ -216,8 +216,8 @@ async function runSiteCli(args: string[]): Promise<unknown> {
 }
 
 const server = new McpServer(
-  { name: "bb-browser", version: __BB_BROWSER_VERSION__ },
-  { instructions: `bb-browser lets you control the user's real Chrome browser — with their login state, cookies, and sessions.
+  { name: "bun-browser", version: __BUN_BROWSER_VERSION__ },
+  { instructions: `bun-browser lets you control the user's real Chrome browser — with their login state, cookies, and sessions.
 
 Your browser is the API. No headless browser, no cookie extraction, no anti-bot bypass.
 
@@ -228,7 +228,7 @@ Key capabilities:
 - browser_network: Capture network requests/responses (API reverse engineering)
 - browser_screenshot: Visual page capture
 - browser_tab_list/tab_new: Multi-tab support — use tab parameter for concurrent operations
-- browser_close_all: Close tabs opened by bb-browser during the current MCP session
+- browser_close_all: Close tabs opened by bun-browser during the current MCP session
 
 Site adapters (pre-built commands for popular sites):
 - site_list/site_search/site_info: Discover available adapters and their signatures
@@ -237,7 +237,7 @@ Site adapters (pre-built commands for popular sites):
 - site_update: Pull the community adapter repository
 - Available: reddit, twitter, github, hackernews, xiaohongshu, zhihu, bilibili, weibo, douban, youtube
 
-To create a new site adapter, run: bb-browser guide` },
+To create a new site adapter, run: bun-browser guide` },
 );
 
 server.tool(
@@ -462,7 +462,7 @@ server.tool(
 
 server.tool(
   "browser_close_all",
-  "Close tabs opened by bb-browser during the current MCP session",
+  "Close tabs opened by bun-browser during the current MCP session",
   {},
   async () => {
     const closedTabs: string[] = [];

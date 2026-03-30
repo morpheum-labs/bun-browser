@@ -1,4 +1,4 @@
-# bb-browser Agent Guidelines
+# bun-browser Agent Guidelines
 
 ## Architecture
 
@@ -22,7 +22,7 @@ The daemon is generic — it routes all commands automatically, no changes neede
 
 ## UX Writing Spec (Agent & Human)
 
-bb-browser has two users: **humans** (direct CLI) and **AI Agents** (bash/MCP). The Agent is the bridge — it reads bb-browser output and translates it for the human. Every text surface must serve both.
+bun-browser has two users: **humans** (direct CLI) and **AI Agents** (bash/MCP). The Agent is the bridge — it reads bun-browser output and translates it for the human. Every text surface must serve both.
 
 ### `site list` Descriptions
 
@@ -63,7 +63,7 @@ Every error must have three fields:
 {
   "error": "HTTP 401",
   "hint": "需要先登录雪球，请先在浏览器中打开 xueqiu.com 并登录",
-  "action": "bb-browser open https://xueqiu.com"
+  "action": "bun-browser open https://xueqiu.com"
 }
 ```
 
@@ -77,7 +77,7 @@ Every command output that has a natural next step should include a one-line hint
 
 ```
 # After site update:
-💡 运行 bb-browser site recommend 看看哪些和你的浏览习惯匹配
+💡 运行 bun-browser site recommend 看看哪些和你的浏览习惯匹配
 ```
 
 ### `--help` Grouping
@@ -103,5 +103,5 @@ The primary onboarding command for both humans and Agents:
 - Types: `fix` / `feat` / `refactor` / `chore` / `docs`
 - Chinese for user-facing strings, English for code/comments
 - Follow existing patterns: read `trace.ts` before adding a new CLI command
-- Build: `pnpm build` from repo root
+- Build: `bun run build` from repo root
 - No tests required for site adapters

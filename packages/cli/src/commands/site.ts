@@ -2,18 +2,18 @@
  * site 命令 - 管理和运行社区/私有网站适配器
  *
  * 用法：
- *   bb-browser site list                      列出所有可用 site adapter
- *   bb-browser site search <query>            搜索
- *   bb-browser site <name> [args...]          运行（简写）
- *   bb-browser site run <name> [args...]      运行
- *   bb-browser site update                    更新社区 adapter 库
+ *   bun-browser site list                      列出所有可用 site adapter
+ *   bun-browser site search <query>            搜索
+ *   bun-browser site <name> [args...]          运行（简写）
+ *   bun-browser site run <name> [args...]      运行
+ *   bun-browser site update                    更新社区 adapter 库
  *
  * 目录：
- *   ~/.bb-browser/sites/       私有 adapter（优先）
- *   ~/.bb-browser/bb-sites/    社区 adapter（bb-browser site update 拉取）
+ *   ~/.bun-browser/sites/       私有 adapter（优先）
+ *   ~/.bun-browser/bb-sites/    社区 adapter（bun-browser site update 拉取）
  */
 
-import { generateId, type Request, type Response, type TabInfo } from "@bb-browser/shared";
+import { generateId, type Request, type Response, type TabInfo } from "@bun-browser/shared";
 import { handleJqResponse, sendCommand } from "../client.js";
 import { getHistoryDomains } from "../history-sqlite.js";
 import { ensureDaemonRunning } from "../daemon-manager.js";
@@ -22,17 +22,17 @@ import { join, relative } from "node:path";
 import { homedir } from "node:os";
 import { execSync } from "node:child_process";
 
-const BB_DIR = join(homedir(), ".bb-browser");
+const BB_DIR = join(homedir(), ".bun-browser");
 const LOCAL_SITES_DIR = join(BB_DIR, "sites");
 const COMMUNITY_SITES_DIR = join(BB_DIR, "bb-sites");
 const COMMUNITY_REPO = "https://github.com/epiral/bb-sites.git";
 
 function checkCliUpdate(): void {
   try {
-    const current = execSync("bb-browser --version", { timeout: 3000, stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
-    const latest = execSync("npm view bb-browser version", { timeout: 5000, stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
+    const current = execSync("bun-browser --version", { timeout: 3000, stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
+    const latest = execSync("npm view bun-browser version", { timeout: 5000, stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
     if (latest && current && latest !== current && latest.localeCompare(current, undefined, { numeric: true }) > 0) {
-      console.log(`\n📦 bb-browser ${latest} available (current: ${current}). Run: npm install -g bb-browser`);
+      console.log(`\n📦 bun-browser ${latest} available (current: ${current}). Run: npm install -g bun-browser or bun add -g bun-browser`);
     }
   } catch {}
 }
@@ -187,7 +187,7 @@ export function getSiteHintForDomain(url: string): string | null {
     const matched = sites.filter(s => s.domain && (hostname === s.domain || hostname.endsWith("." + s.domain)));
     if (matched.length === 0) return null;
     const names = matched.map(s => s.name);
-    const example = matched[0].example || `bb-browser site ${names[0]}`;
+    const example = matched[0].example || `bun-browser site ${names[0]}`;
     return `该网站有 ${names.length} 个 site adapter 可直接获取数据，无需手动操作浏览器。试试: ${example}`;
   } catch {
     return null;
@@ -231,7 +231,7 @@ function siteList(options: SiteOptions): void {
       return;
     }
     console.log("未找到任何 site adapter。");
-    console.log("  安装社区 adapter: bb-browser site update");
+    console.log("  安装社区 adapter: bun-browser site update");
     console.log(`  私有 adapter 目录: ${LOCAL_SITES_DIR}`);
     return;
   }
@@ -278,7 +278,7 @@ function siteSearch(query: string, options: SiteOptions): void {
       return;
     }
     console.log(`未找到匹配 "${query}" 的 adapter。`);
-    console.log("  查看所有: bb-browser site list");
+    console.log("  查看所有: bun-browser site list");
     return;
   }
 
@@ -308,16 +308,16 @@ function siteUpdate(options: SiteOptions = {}): void {
       if (!options.json) {
         console.log("更新完成。");
         console.log("");
-        console.log("💡 运行 bb-browser site recommend 看看哪些和你的浏览习惯匹配");
+        console.log("💡 运行 bun-browser site recommend 看看哪些和你的浏览习惯匹配");
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      const manualAction = "cd ~/.bb-browser/bb-sites && git pull";
+      const manualAction = "cd ~/.bun-browser/bb-sites && git pull";
       if (options.json) {
         exitJsonError(`更新失败: ${message}`, { action: manualAction, updateMode });
       }
       console.error(`更新失败: ${e instanceof Error ? e.message : e}`);
-      console.error("  手动修复: cd ~/.bb-browser/bb-sites && git pull");
+      console.error("  手动修复: cd ~/.bun-browser/bb-sites && git pull");
       process.exit(1);
     }
   } else {
@@ -329,16 +329,16 @@ function siteUpdate(options: SiteOptions = {}): void {
       if (!options.json) {
         console.log("克隆完成。");
         console.log("");
-        console.log("💡 运行 bb-browser site recommend 看看哪些和你的浏览习惯匹配");
+        console.log("💡 运行 bun-browser site recommend 看看哪些和你的浏览习惯匹配");
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      const manualAction = `git clone ${COMMUNITY_REPO} ~/.bb-browser/bb-sites`;
+      const manualAction = `git clone ${COMMUNITY_REPO} ~/.bun-browser/bb-sites`;
       if (options.json) {
         exitJsonError(`克隆失败: ${message}`, { action: manualAction, updateMode });
       }
       console.error(`克隆失败: ${e instanceof Error ? e.message : e}`);
-      console.error(`  手动修复: git clone ${COMMUNITY_REPO} ~/.bb-browser/bb-sites`);
+      console.error(`  手动修复: git clone ${COMMUNITY_REPO} ~/.bun-browser/bb-sites`);
       process.exit(1);
     }
   }
@@ -356,7 +356,7 @@ function siteUpdate(options: SiteOptions = {}): void {
   }
 
   console.log(`已安装 ${sites.length} 个社区 adapter。`);
-  console.log(`⭐ Like bb-browser? → bb-browser star`);
+  console.log(`⭐ Like bun-browser? → bun-browser star`);
 
   // Check for CLI updates
   checkCliUpdate();
@@ -371,10 +371,10 @@ function siteInfo(name: string, options: SiteOptions): void {
 
   if (!site) {
     if (options.json) {
-      exitJsonError(`adapter "${name}" not found`, { action: "bb-browser site list" });
+      exitJsonError(`adapter "${name}" not found`, { action: "bun-browser site list" });
     }
     console.error(`[error] site info: adapter "${name}" not found.`);
-    console.error("  Try: bb-browser site list");
+    console.error("  Try: bun-browser site list");
     process.exit(1);
   }
 
@@ -409,7 +409,7 @@ function siteInfo(name: string, options: SiteOptions): void {
 
   console.log();
   console.log("示例：");
-  console.log(`  ${site.example || `bb-browser site ${site.name}`}`);
+  console.log(`  ${site.example || `bun-browser site ${site.name}`}`);
   console.log();
   console.log(`域名：${site.domain || "（未声明）"}`);
   console.log(`只读：${site.readOnly ? "是" : "否"}`);
@@ -443,7 +443,7 @@ async function siteRecommend(options: SiteOptions): Promise<void> {
         adapters: sortedAdapters.map((site) => ({
           name: site.name,
           description: site.description,
-          example: site.example || `bb-browser site ${site.name}`,
+          example: site.example || `bun-browser site ${site.name}`,
         })),
       });
     } else if (item.visits >= 5 && item.domain && !item.domain.includes('localhost') && item.domain.includes('.')) {
@@ -476,7 +476,7 @@ async function siteRecommend(options: SiteOptions): Promise<void> {
   } else {
     for (const item of available) {
       console.log(`  ${item.domain.padEnd(20)} ${item.visits} 次访问    ${item.adapterCount} 个命令`);
-      console.log(`    试试: ${item.adapters[0]?.example || `bb-browser site ${item.adapters[0]?.name || ""}`}`);
+      console.log(`    试试: ${item.adapters[0]?.example || `bun-browser site ${item.adapters[0]?.name || ""}`}`);
       console.log();
     }
   }
@@ -510,18 +510,18 @@ async function siteRun(
     if (options.json) {
       exitJsonError(`site "${name}" not found`, {
         suggestions: fuzzy.slice(0, 5).map(s => s.name),
-        action: fuzzy.length > 0 ? undefined : "bb-browser site update",
+        action: fuzzy.length > 0 ? undefined : "bun-browser site update",
       });
     }
     console.error(`[error] site: "${name}" not found.`);
     if (fuzzy.length > 0) {
       console.error("  Did you mean:");
       for (const s of fuzzy.slice(0, 5)) {
-        console.error(`    bb-browser site ${s.name}`);
+        console.error(`    bun-browser site ${s.name}`);
       }
     } else {
-      console.error("  Try: bb-browser site list");
-      console.error("  Or:  bb-browser site update");
+      console.error("  Try: bun-browser site list");
+      console.error("  Or:  bun-browser site update");
     }
     process.exit(1);
   }
@@ -561,12 +561,12 @@ async function siteRun(
       }).join(" ");
       if (options.json) {
         exitJsonError(`missing required argument "${argName}"`, {
-          usage: `bb-browser site ${name} ${usage}`,
+          usage: `bun-browser site ${name} ${usage}`,
           example: site.example,
         });
       }
       console.error(`[error] site ${name}: missing required argument "${argName}".`);
-      console.error(`  Usage: bb-browser site ${name} ${usage}`);
+      console.error(`  Usage: bun-browser site ${name} ${usage}`);
       if (site.example) console.error(`  Example: ${site.example}`);
       process.exit(1);
     }
@@ -615,7 +615,7 @@ async function siteRun(
         ? `Please log in to https://${site.domain} in your OpenClaw browser first, then retry.`
         : undefined;
       const hint = loginHint || errObj.hint;
-      const reportHint = `If this is an adapter bug, report via: gh issue create --repo epiral/bb-sites --title "[${name}] <description>" OR: bb-browser site github/issue-create epiral/bb-sites --title "[${name}] <description>"`;
+      const reportHint = `If this is an adapter bug, report via: gh issue create --repo epiral/bb-sites --title "[${name}] <description>" OR: bun-browser site github/issue-create epiral/bb-sites --title "[${name}] <description>"`;
 
       if (options.json) {
         console.log(JSON.stringify({ id: "openclaw", success: false, error: errObj.error, hint, reportHint }));
@@ -623,7 +623,7 @@ async function siteRun(
         console.error(`[error] site ${name}: ${errObj.error}`);
         if (hint) console.error(`  Hint: ${hint}`);
         console.error(`  Report: gh issue create --repo epiral/bb-sites --title "[${name}] ..."`);
-        console.error(`     or: bb-browser site github/issue-create epiral/bb-sites --title "[${name}] ..."`);
+        console.error(`     or: bun-browser site github/issue-create epiral/bb-sites --title "[${name}] ..."`);
       }
       process.exit(1);
     }
@@ -719,7 +719,7 @@ async function siteRun(
       ? `Please log in to https://${site.domain} in your browser first, then retry.`
       : undefined;
     const hint = loginHint || errObj.hint;
-    const reportHint = `If this is an adapter bug, report via: gh issue create --repo epiral/bb-sites --title "[${name}] <description>" OR: bb-browser site github/issue-create epiral/bb-sites --title "[${name}] <description>"`;
+    const reportHint = `If this is an adapter bug, report via: gh issue create --repo epiral/bb-sites --title "[${name}] <description>" OR: bun-browser site github/issue-create epiral/bb-sites --title "[${name}] <description>"`;
 
     if (options.json) {
       console.log(JSON.stringify({ id: evalReq.id, success: false, error: errObj.error, hint, reportHint }));
@@ -727,7 +727,7 @@ async function siteRun(
       console.error(`[error] site ${name}: ${errObj.error}`);
       if (hint) console.error(`  Hint: ${hint}`);
       console.error(`  Report: gh issue create --repo epiral/bb-sites --title "[${name}] ..."`);
-      console.error(`     or: bb-browser site github/issue-create epiral/bb-sites --title "[${name}] ..."`);
+      console.error(`     or: bun-browser site github/issue-create epiral/bb-sites --title "[${name}] ..."`);
     }
     process.exit(1);
   }
@@ -756,29 +756,29 @@ export async function siteCommand(
   const subCommand = args[0];
 
   if (!subCommand || subCommand === "--help" || subCommand === "-h") {
-    console.log(`bb-browser site - 网站 CLI 化（管理和运行 site adapter）
+    console.log(`bun-browser site - 网站 CLI 化（管理和运行 site adapter）
 
 用法:
-  bb-browser site list                      列出所有可用 adapter
-  bb-browser site info <name>               查看 adapter 元信息
-  bb-browser site recommend                 基于历史记录推荐 adapter
-  bb-browser site search <query>            搜索 adapter
-  bb-browser site <name> [args...]          运行 adapter（简写）
-  bb-browser site run <name> [args...]      运行 adapter
-  bb-browser site update                    更新社区 adapter 库 (git clone/pull)
+  bun-browser site list                      列出所有可用 adapter
+  bun-browser site info <name>               查看 adapter 元信息
+  bun-browser site recommend                 基于历史记录推荐 adapter
+  bun-browser site search <query>            搜索 adapter
+  bun-browser site <name> [args...]          运行 adapter（简写）
+  bun-browser site run <name> [args...]      运行 adapter
+  bun-browser site update                    更新社区 adapter 库 (git clone/pull)
 
 目录:
   ${LOCAL_SITES_DIR}      私有 adapter（优先）
   ${COMMUNITY_SITES_DIR}   社区 adapter
 
 示例:
-  bb-browser site update
-  bb-browser site list
-  bb-browser site reddit/thread https://www.reddit.com/r/LocalLLaMA/comments/...
-  bb-browser site twitter/user yan5xu
-  bb-browser site search reddit
+  bun-browser site update
+  bun-browser site list
+  bun-browser site reddit/thread https://www.reddit.com/r/LocalLLaMA/comments/...
+  bun-browser site twitter/user yan5xu
+  bun-browser site search reddit
 
-创建新 adapter: bb-browser guide
+创建新 adapter: bun-browser guide
 报告问题: gh issue create --repo epiral/bb-sites --title "[adapter-name] 描述"
 贡献社区: https://github.com/epiral/bb-sites`);
     return;
@@ -789,7 +789,7 @@ export async function siteCommand(
     case "search":
       if (!args[1]) {
         console.error("[error] site search: <query> is required.");
-        console.error("  Usage: bb-browser site search <query>");
+        console.error("  Usage: bun-browser site search <query>");
         process.exit(1);
       }
       siteSearch(args[1], options);
@@ -797,7 +797,7 @@ export async function siteCommand(
     case "info":
       if (!args[1]) {
         console.error("[error] site info: <name> is required.");
-        console.error("  Usage: bb-browser site info <name>");
+        console.error("  Usage: bun-browser site info <name>");
         process.exit(1);
       }
       siteInfo(args[1], options);
@@ -809,8 +809,8 @@ export async function siteCommand(
     case "run":
       if (!args[1]) {
         console.error("[error] site run: <name> is required.");
-        console.error("  Usage: bb-browser site run <name> [args...]");
-        console.error("  Try: bb-browser site list");
+        console.error("  Usage: bun-browser site run <name> [args...]");
+        console.error("  Try: bun-browser site list");
         process.exit(1);
       }
       await siteRun(args[1], args.slice(2), options);
@@ -821,7 +821,7 @@ export async function siteCommand(
       } else {
         console.error(`[error] site: unknown subcommand "${subCommand}".`);
         console.error("  Available: list, info, recommend, search, run, update");
-        console.error("  Try: bb-browser site --help");
+        console.error("  Try: bun-browser site --help");
         process.exit(1);
       }
       break;

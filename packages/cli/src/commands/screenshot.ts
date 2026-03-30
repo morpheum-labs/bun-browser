@@ -1,15 +1,15 @@
 /**
  * screenshot 命令 - 截取当前页面
  * 用法：
- *   bb-browser screenshot              # 保存到临时目录
- *   bb-browser screenshot ./page.png   # 保存到指定路径
- *   bb-browser screenshot --json       # 返回 { path, base64 }
+ *   bun-browser screenshot              # 保存到临时目录
+ *   bun-browser screenshot ./page.png   # 保存到指定路径
+ *   bun-browser screenshot --json       # 返回 { path, base64 }
  */
 
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { generateId, type Request, type Response } from "@bb-browser/shared";
+import { generateId, type Request, type Response } from "@bun-browser/shared";
 import { sendCommand } from "../client.js";
 import { ensureDaemonRunning } from "../daemon-manager.js";
 

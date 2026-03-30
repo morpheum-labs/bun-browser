@@ -1,5 +1,5 @@
 /**
- * CDP DOM Service for bb-browser Extension
+ * CDP DOM Service for bun-browser Extension
  *
  * 使用 CDP Accessibility Tree 生成 snapshot，使用 backendDOMNodeId 定位元素。
  *

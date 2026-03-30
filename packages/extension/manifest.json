@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "bb-browser",
+  "name": "bun-browser",
   "version": "0.10.0",
   "description": "Browser automation for AI agents",
   "permissions": [

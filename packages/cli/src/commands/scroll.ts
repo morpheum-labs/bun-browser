@@ -1,12 +1,12 @@
 /**
  * scroll 命令 - 滚动页面
- * 用法：bb-browser scroll <direction> [pixels]
+ * 用法：bun-browser scroll <direction> [pixels]
  *
  * direction: up | down | left | right
  * pixels: 滚动像素数，默认 300
  */
 
-import { generateId, type Request, type Response } from "@bb-browser/shared";
+import { generateId, type Request, type Response } from "@bun-browser/shared";
 import { sendCommand } from "../client.js";
 import { ensureDaemonRunning } from "../daemon-manager.js";
 

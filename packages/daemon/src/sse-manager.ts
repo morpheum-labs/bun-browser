@@ -8,8 +8,8 @@
  */
 
 import type { ServerResponse } from "node:http";
-import type { Request } from "@bb-browser/shared";
-import { SSE_HEARTBEAT_INTERVAL } from "@bb-browser/shared";
+import type { Request } from "@bun-browser/shared";
+import { SSE_HEARTBEAT_INTERVAL } from "@bun-browser/shared";
 
 /**
  * SSE 连接管理器

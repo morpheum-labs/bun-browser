@@ -32,10 +32,10 @@ export async function ensureDaemonRunning(): Promise<void> {
   } catch (error) {
     if (error instanceof Error && error.message.includes("No browser connection found")) {
       throw new Error([
-        "bb-browser: Could not start browser.",
+        "bun-browser: Could not start browser.",
         "",
         "Make sure Chrome is installed, then try again.",
-        "Or specify a CDP port manually: bb-browser --port 9222",
+        "Or specify a CDP port manually: bun-browser --port 9222",
       ].join("\n"));
     }
     throw error;

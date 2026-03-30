@@ -1,5 +1,5 @@
 /**
- * SSE Client for bb-browser Extension
+ * SSE Client for bun-browser Extension
  * 使用 fetch + ReadableStream 实现，兼容 Service Worker (Manifest V3)
  */
 
