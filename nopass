@@ -1,8 +1,23 @@
 FROM oven/bun:1-debian
 
-# Install Chrome + Xvfb + noVNC (for easy GUI login)
-RUN apt-get update && apt-get install -y \
-    google-chrome-stable \
+# google-chrome-stable is not in default Debian repos; Google only publishes amd64 for Linux.
+# Install Chrome (amd64) or Chromium (other arches) + Xvfb + noVNC (for easy GUI login)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates gnupg wget \
+    && set -eux; \
+    ARCH="$(dpkg --print-architecture)"; \
+    if [ "${ARCH}" = "amd64" ]; then \
+      wget -q -O - https://dl.google.com/linux/linux_signing_key.pub \
+        | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg; \
+      echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+        > /etc/apt/sources.list.d/google-chrome.list; \
+      apt-get update; \
+      apt-get install -y --no-install-recommends google-chrome-stable; \
+    else \
+      apt-get install -y --no-install-recommends chromium; \
+      ln -sf /usr/bin/chromium /usr/local/bin/google-chrome; \
+    fi \
+    && apt-get install -y --no-install-recommends \
     xvfb \
     tightvncserver \
     novnc \
@@ -14,11 +29,15 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Install bun-browser globally using Bun
-RUN bun add -g bun-browser
-
-# Copy the unpacked extension (download latest from https://github.com/morpheum-labs/bun-browser/releases)
-COPY ./extension /app/extension
+# bun-browser is not published to npm; build from this repo and expose CLI on PATH
+COPY package.json bun.lock ./
+COPY turbo.json tsconfig.base.json tsup.config.ts ./
+COPY packages ./packages
+RUN bun install --frozen-lockfile \
+    && bun run build \
+    && printf '%s\n' '#!/bin/sh' 'exec bun /app/dist/cli.js "$@"' > /usr/local/bin/bun-browser \
+    && printf '%s\n' '#!/bin/sh' 'exec bun /app/dist/mcp.js "$@"' > /usr/local/bin/bun-browser-mcp \
+    && chmod +x /usr/local/bin/bun-browser /usr/local/bin/bun-browser-mcp
 
 # Persistent volume = your real Chrome session holder (cookies, logins, etc.)
 VOLUME /chrome-profile

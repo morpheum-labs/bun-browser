@@ -1,11 +1,16 @@
 services:
   bun-browser:
-    build: .
+    build:
+      context: .
+      dockerfile: passvnc
     container_name: bun-browser
+    environment:
+      VNC_USERNAME: admin
+      VNC_PASSWORD: dumdumdum
     ports:
       - "19824:19824"   # daemon / MCP / CLI
       - "9222:9222"     # CDP (debug)
-      - "6080:6080"     # noVNC web GUI
+      - "6080:6080"     # noVNC web GUI (nginx basic auth via entrance.sh)
     volumes:
       - chrome-profile:/chrome-profile
     shm_size: 2gb
