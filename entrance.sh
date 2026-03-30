@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Minimal login env (Docker often omits USER; tightvnc needs it)
+export USER="${USER:-$(id -un)}"
+export HOME="${HOME:-/root}"
+
 # 1. Create Nginx basic auth file
 mkdir -p /etc/nginx/conf.d
 htpasswd -Bbn "${VNC_USERNAME}" "${VNC_PASSWORD}" > /etc/nginx/.htpasswd
 
 # 2. Start virtual display + VNC + websockify (internal)
+rm -f /tmp/.X99-lock /tmp/.X11-unix/X99 2>/dev/null || true
 Xvfb :99 -screen 0 1920x1080x24 &
 tightvncserver :1 -geometry 1920x1080 -depth 24 &
 websockify --web=/usr/share/novnc/ 5901 localhost:5901 &

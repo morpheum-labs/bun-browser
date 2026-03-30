@@ -2,6 +2,7 @@
  * bun-browser CLI 入口
  */
 
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { openCommand } from "./commands/open.js";
 import { snapshotCommand } from "./commands/snapshot.js";
@@ -408,7 +409,26 @@ async function main(): Promise<void> {
         break;
       }
 
-      case "daemon":
+      case "daemon": {
+        const cliDir = path.dirname(fileURLToPath(import.meta.url));
+        const daemonJs = path.join(cliDir, "daemon.js");
+        const { spawn } = await import("node:child_process");
+        const daemonIdx = process.argv.indexOf("daemon");
+        const forwarded = daemonIdx >= 0 ? process.argv.slice(daemonIdx + 1) : [];
+        const child = spawn(process.execPath, [daemonJs, ...forwarded], { stdio: "inherit" });
+        await new Promise<void>((resolve, reject) => {
+          child.on("error", reject);
+          child.on("exit", (code, signal) => {
+            if (signal) {
+              reject(new Error(`daemon exited with signal ${signal}`));
+            } else {
+              process.exitCode = code ?? 1;
+              resolve();
+            }
+          });
+        });
+        break;
+      }
 
       case "close": {
         await closeCommand({ json: parsed.flags.json, tabId: globalTabId });
