@@ -34,3 +34,4 @@ bun-debug.log*
 
 # Test coverage
 coverage/
+issue.log
