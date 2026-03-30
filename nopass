@@ -1,0 +1,48 @@
+FROM oven/bun:1-debian
+
+# Install Chrome + Xvfb + noVNC (for easy GUI login)
+RUN apt-get update && apt-get install -y \
+    google-chrome-stable \
+    xvfb \
+    tightvncserver \
+    novnc \
+    websockify \
+    fonts-liberation \
+    libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 \
+    libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install bun-browser globally using Bun
+RUN bun add -g bun-browser
+
+# Copy the unpacked extension (download latest from https://github.com/morpheum-labs/bun-browser/releases)
+COPY ./extension /app/extension
+
+# Persistent volume = your real Chrome session holder (cookies, logins, etc.)
+VOLUME /chrome-profile
+
+EXPOSE 19824 9222 6080
+
+# Start everything in one go
+CMD ["sh", "-c", "\
+    Xvfb :99 -screen 0 1920x1080x24 & \
+    tightvncserver :1 -geometry 1920x1080 -depth 24 & \
+    websockify --web=/usr/share/novnc/ 6080 localhost:5901 & \
+    sleep 3 && \
+    export DISPLAY=:99 && \
+    google-chrome \
+        --no-sandbox \
+        --disable-setuid-sandbox \
+        --disable-dev-shm-usage \
+        --disable-gpu \
+        --remote-debugging-port=9222 \
+        --load-extension=/app/extension \
+        --user-data-dir=/chrome-profile \
+        --start-maximized \
+        --no-first-run \
+        & \
+    sleep 6 && \
+    bun-browser daemon --host 0.0.0.0 \
+"]

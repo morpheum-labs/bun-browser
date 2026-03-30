@@ -1,0 +1,15 @@
+services:
+  bun-browser:
+    build: .
+    container_name: bun-browser
+    ports:
+      - "19824:19824"   # daemon / MCP / CLI
+      - "9222:9222"     # CDP (debug)
+      - "6080:6080"     # noVNC web GUI
+    volumes:
+      - chrome-profile:/chrome-profile
+    shm_size: 2gb
+    restart: unless-stopped
+
+volumes:
+  chrome-profile:
