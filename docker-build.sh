@@ -3,6 +3,10 @@
 # The image runs `bun install` + `bun run build` from repo source (not npm; bun-browser is not published there).
 # Two Dockerfiles: nopass (open noVNC) or passvnc (nginx basic auth + entrance.sh).
 #
+# Runtime: both variants mount /chrome-profile (see compose.yml). On start, stale Chrome
+# SingletonLock/Socket/Cookie files are removed so a new container ID does not trip Chrome's
+# "profile in use on another computer" error. Rebuild the image after changing entrance.sh or nopass CMD.
+#
 # Usage:
 #   bash docker-build.sh
 #   bash docker-build.sh [tag]

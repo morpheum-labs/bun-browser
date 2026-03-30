@@ -51,6 +51,7 @@ CMD ["sh", "-c", "\
     websockify --web=/usr/share/novnc/ 6080 localhost:5901 & \
     sleep 3 && \
     export DISPLAY=:99 && \
+    rm -f /chrome-profile/SingletonLock /chrome-profile/SingletonSocket /chrome-profile/SingletonCookie 2>/dev/null || true && \
     google-chrome \
         --no-sandbox \
         --disable-setuid-sandbox \

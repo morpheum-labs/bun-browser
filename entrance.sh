@@ -43,6 +43,14 @@ nginx -g 'daemon off;' &
 # 4. Start Chrome + bun-browser daemon
 sleep 3
 export DISPLAY=:99
+
+# Persisted user-data-dir keeps SingletonLock from the *previous* container hostname/PID.
+# Chrome then refuses to start ("another computer"). Safe here: one container, one Chrome.
+CHROME_USER_DATA="${CHROME_USER_DATA:-/chrome-profile}"
+rm -f "${CHROME_USER_DATA}/SingletonLock" \
+      "${CHROME_USER_DATA}/SingletonSocket" \
+      "${CHROME_USER_DATA}/SingletonCookie" 2>/dev/null || true
+
 google-chrome \
     --no-sandbox \
     --disable-setuid-sandbox \
@@ -50,7 +58,7 @@ google-chrome \
     --disable-gpu \
     --remote-debugging-port=9222 \
     --load-extension=/app/extension \
-    --user-data-dir=/chrome-profile \
+    --user-data-dir="${CHROME_USER_DATA}" \
     --start-maximized \
     --no-first-run &
 
