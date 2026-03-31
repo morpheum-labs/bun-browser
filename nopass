@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fi \
     && apt-get install -y --no-install-recommends \
     xvfb \
-    tightvncserver \
+    x11vnc \
     novnc \
     websockify \
     fonts-liberation \
@@ -46,11 +46,13 @@ EXPOSE 19824 9222 6080
 
 # Start everything in one go
 CMD ["sh", "-c", "\
-    rm -f /tmp/.X1-lock /tmp/.X11-unix/X1 2>/dev/null || true && \
-    tightvncserver :1 -geometry 1920x1080 -depth 24 & \
+    rm -f /tmp/.X99-lock /tmp/.X11-unix/X99 2>/dev/null || true && \
+    Xvfb :99 -screen 0 1920x1080x24 & \
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do test -S /tmp/.X11-unix/X99 && break; sleep 0.05; done && \
+    export DISPLAY=:99 && \
+    x11vnc -display :99 -rfbport 5901 -forever -shared -nopw -localhost & \
     websockify --web=/usr/share/novnc/ 6080 localhost:5901 & \
-    sleep 3 && \
-    export DISPLAY=:1 && \
+    sleep 2 && \
     rm -f /chrome-profile/SingletonLock /chrome-profile/SingletonSocket /chrome-profile/SingletonCookie 2>/dev/null || true && \
     google-chrome \
         --no-sandbox \

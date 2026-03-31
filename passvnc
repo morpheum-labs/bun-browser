@@ -1,7 +1,7 @@
 FROM oven/bun:1-debian
 
 # google-chrome-stable is not in default Debian repos; Google only publishes amd64 for Linux.
-# Install Chrome (amd64) or Chromium (other arches) + Xvfb + noVNC + Nginx (for auth)
+# Install Chrome (amd64) or Chromium (other arches) + Xvfb + x11vnc + noVNC + Nginx (for auth)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates gnupg wget \
     && set -eux; \
@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fi \
     && apt-get install -y --no-install-recommends \
     xvfb \
-    tightvncserver \
+    x11vnc \
     novnc \
     websockify \
     nginx \
