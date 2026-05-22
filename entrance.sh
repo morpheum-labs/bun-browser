@@ -70,4 +70,4 @@ google-chrome \
 
 sleep 6
 export BUN_BROWSER_CDP_URL=http://127.0.0.1:9222
-exec bun-browser daemon --host 0.0.0.0 --cdp-port 9222
+exec bun /app/dist/daemon.js --host 0.0.0.0 --cdp-port 9222

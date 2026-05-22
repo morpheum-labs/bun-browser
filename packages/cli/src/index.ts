@@ -448,15 +448,19 @@ async function main(): Promise<void> {
         const daemonPath = getDaemonPath();
         const daemonArgs = process.argv.slice(3);
         const { spawn } = await import("node:child_process");
-        const child = spawn(process.execPath, [daemonPath, ...daemonArgs], {
-          stdio: "inherit",
-        });
-        child.on("exit", (code, signal) => {
-          if (signal) {
-            process.kill(process.pid, signal);
-            return;
-          }
-          process.exit(code ?? 0);
+        await new Promise<void>((resolve, reject) => {
+          const child = spawn(process.execPath, [daemonPath, ...daemonArgs], {
+            stdio: "inherit",
+          });
+          child.on("error", reject);
+          child.on("exit", (code, signal) => {
+            if (signal) {
+              process.kill(process.pid, signal);
+              return;
+            }
+            process.exit(code ?? 0);
+            resolve();
+          });
         });
         return;
       }

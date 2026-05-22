@@ -20,6 +20,7 @@
 # Environment — build:
 #   IMAGE_NAME          Base image name (default: bun-browser). Built as ${IMAGE_NAME}-${variant}:${tag}
 #   DOCKER_VARIANT      nopass | passvnc — skips menu when set
+#   BUN_VERSION         Bun base image version (default: 1.3.14, see oven/bun on Docker Hub)
 #   SKIP_BUILD          If 1, skip build and only tag/push existing local image
 #
 # Environment — push (--push):
@@ -105,10 +106,15 @@ if [[ -z "${TAG}" ]]; then
 fi
 
 LOCAL_IMAGE="${IMAGE_NAME}-${VARIANT}:${TAG}"
+BUN_VERSION="${BUN_VERSION:-1.3.14}"
 
 if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
-  echo "Building ${LOCAL_IMAGE} (Dockerfile=${DOCKERFILE}, tag=${TAG})..."
-  docker build -f "${DOCKERFILE}" -t "${LOCAL_IMAGE}" "${ROOT}"
+  echo "Building ${LOCAL_IMAGE} (Dockerfile=${DOCKERFILE}, tag=${TAG}, bun=${BUN_VERSION})..."
+  docker build --pull \
+    --build-arg "BUN_VERSION=${BUN_VERSION}" \
+    -f "${DOCKERFILE}" \
+    -t "${LOCAL_IMAGE}" \
+    "${ROOT}"
   echo "OK: ${LOCAL_IMAGE}"
 fi
 

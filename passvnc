@@ -1,4 +1,7 @@
-FROM oven/bun:1-debian
+# Pin to latest stable Bun on Debian — bump BUN_VERSION when upgrading.
+# Tags: https://hub.docker.com/r/oven/bun/tags
+ARG BUN_VERSION=1.3.14
+FROM oven/bun:${BUN_VERSION}-debian
 
 # google-chrome-stable is not in default Debian repos; Google only publishes amd64 for Linux.
 # Install Chrome (amd64) or Chromium (other arches) + Xvfb + x11vnc + noVNC + Nginx (for auth)
@@ -40,7 +43,8 @@ RUN bun install --frozen-lockfile \
     && bun run build \
     && printf '%s\n' '#!/bin/sh' 'exec bun /app/dist/cli.js "$@"' > /usr/local/bin/bun-browser \
     && printf '%s\n' '#!/bin/sh' 'exec bun /app/dist/mcp.js "$@"' > /usr/local/bin/bun-browser-mcp \
-    && chmod +x /usr/local/bin/bun-browser /usr/local/bin/bun-browser-mcp
+    && printf '%s\n' '#!/bin/sh' 'exec bun /app/dist/provider.js "$@"' > /usr/local/bin/bun-browser-provider \
+    && chmod +x /usr/local/bin/bun-browser /usr/local/bin/bun-browser-mcp /usr/local/bin/bun-browser-provider
 
 COPY ./entrance.sh /app/entrance.sh
 
