@@ -4,9 +4,9 @@
   "description": "Your browser is the API. CLI + MCP server for AI agents to control Chrome with your login state.",
   "type": "module",
   "bin": {
-    "bun-browser": "./dist/cli.js",
-    "bun-browser-mcp": "./dist/mcp.js",
-    "bun-browser-provider": "./dist/provider.js"
+    "bun-browser": "dist/cli.js",
+    "bun-browser-mcp": "dist/mcp.js",
+    "bun-browser-provider": "dist/provider.js"
   },
   "main": "./dist/cli.js",
   "files": [
