@@ -97,7 +97,7 @@ if [[ "${VARIANT}" == "passvnc" && ! -f "${ROOT}/entrance.sh" ]]; then
   exit 1
 fi
 
-# Extension and dist/ are built inside the Docker image (see nopass / passvnc Dockerfiles).
+# dist/ is built inside the Docker image (see nopass / passvnc Dockerfiles).
 
 # Version tag = git commit (short hash) unless overridden on the command line
 if [[ -z "${TAG}" ]]; then

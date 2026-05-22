@@ -11,7 +11,9 @@
   "scripts": {
     "build": "bunx --bun tsup",
     "dev": "bunx --bun tsup --watch",
-    "lint": "bunx --bun eslint src tsup.config.ts",
+    "test": "bash -c 'for f in src/__tests__/*.test.ts; do [[ \"$f\" == *protocol-drift* ]] && continue; bun test \"$f\" || exit 1; done'",
+    "test:drift": "node --import tsx/esm --test src/__tests__/protocol-drift.test.ts",
+    "lint": "eslint src tsup.config.ts --ignore-pattern 'src/**/*.d.ts'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -20,6 +22,8 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.7.0"
+    "tsx": "^4.20.6",
+    "typescript": "^5.7.0",
+    "ws": "^8.19.0"
   }
 }

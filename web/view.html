@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remote Browser</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: #0a0a0a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
+#app { display: flex; flex-direction: column; height: 100%; }
+#toolbar { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 32px; background: #1a1a1a; flex-shrink: 0; }
+#toolbar button { padding: 4px 14px; border: 1px solid #2a8c4a; border-radius: 4px; background: #1a5c2e; color: #8f8; cursor: pointer; font-size: 13px; }
+#toolbar button:hover { background: #1f6b35; }
+#toolbar button.connected { border-color: #8c2a2a; background: #5c1a1a; color: #e0e0e0; }
+#toolbar button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Tab bar */
+#tab-bar {
+  display: flex;
+  align-items: center;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+  height: 36px;
+  padding: 0 8px;
+  gap: 2px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: #252525;
+  border: 1px solid #333;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  color: #aaa;
+  font-size: 12px;
+  cursor: pointer;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+  gap: 6px;
+}
+
+.tab.active {
+  background: #333;
+  color: #fff;
+  border-color: #555;
+}
+
+.tab:hover { background: #2a2a2a; }
+.tab.active:hover { background: #333; }
+
+.tab-close {
+  font-size: 14px;
+  line-height: 1;
+  color: #666;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tab-close:hover { color: #f55; }
+
+#new-tab-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #888;
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+#new-tab-btn:hover { background: #333; color: #fff; }
+
+/* URL bar */
+#url-bar {
+  display: flex;
+  align-items: center;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+  height: 40px;
+  padding: 0 8px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.nav-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #888;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.nav-btn:hover { background: #333; color: #fff; }
+
+#url-input {
+  flex: 1;
+  height: 30px;
+  background: #252525;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 13px;
+  padding: 0 10px;
+  outline: none;
+}
+
+#url-input:focus { border-color: #4a9eff; }
+
+/* Video container */
+#video-container { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; background: #000; }
+video { max-width: 100%; max-height: 100%; object-fit: contain; background: #000; }
+#ime-input { position: fixed; top: -100px; left: -100px; width: 1px; height: 1px; opacity: 0; }
+
+/* Video overlay (status message when not connected) */
+#video-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  color: #888;
+  font-size: 14px;
+  z-index: 5;
+  pointer-events: none;
+}
+#video-overlay.hidden { display: none; }
+
+/* Input overlay (captures mouse events over video) */
+#input-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  cursor: default;
+}
+#input-overlay.active { cursor: crosshair; }
+
+/* Tab/URL bar dimming when disconnected */
+#tab-bar.dimmed, #url-bar.dimmed {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Status bar */
+#status-bar {
+  height: 24px;
+  background: #1a1a1a;
+  border-top: 1px solid #333;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 11px;
+  color: #666;
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+#status-bar .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #555;
+  flex-shrink: 0;
+}
+
+#status-bar .status-dot.connected { background: #4caf50; }
+#status-bar .status-dot.connecting { background: #ff9800; }
+#status-bar .status-dot.error { background: #f44; }
+
+#status-resolution {
+  margin-left: auto;
+}
+
+#debug-toggle {
+  height: 18px;
+  padding: 0 8px;
+  background: #252525;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #888;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+#debug-toggle.active {
+  color: #fff;
+  border-color: #4a9eff;
+  background: #123152;
+}
+
+/* Debug panel */
+#debug-panel {
+  position: absolute;
+  right: 12px;
+  bottom: 36px;
+  width: min(760px, calc(100vw - 24px));
+  max-height: min(420px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  background: rgba(8, 12, 18, 0.94);
+  border: 1px solid #35506d;
+  border-radius: 8px;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  z-index: 20;
+}
+
+#debug-panel[hidden] { display: none; }
+
+#debug-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #101a26;
+  border-bottom: 1px solid #27384b;
+  color: #cbe4ff;
+  font-size: 12px;
+}
+
+#debug-header strong { margin-right: auto; }
+
+.debug-action {
+  height: 22px;
+  padding: 0 8px;
+  background: #17283a;
+  border: 1px solid #35506d;
+  border-radius: 4px;
+  color: #cbe4ff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+#debug-log {
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  color: #b7d8ff;
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <span style="font-size:13px;color:#888;margin-right:auto">Remote Browser</span>
+    <button id="btn-connect">Connect</button>
+  </div>
+  <div id="tab-bar">
+    <button id="new-tab-btn" title="New tab">+</button>
+  </div>
+  <div id="url-bar">
+    <button class="nav-btn" id="btn-back" title="Back">&#9664;</button>
+    <button class="nav-btn" id="btn-forward" title="Forward">&#9654;</button>
+    <button class="nav-btn" id="btn-reload" title="Reload">&#8635;</button>
+    <input type="text" id="url-input" placeholder="Enter URL..." />
+    <button class="nav-btn" id="btn-go" title="Go">&#10140;</button>
+  </div>
+  <div id="video-container">
+    <video id="video" autoplay playsinline muted></video>
+    <div id="video-overlay">Click Connect to start</div>
+    <div id="input-overlay"></div>
+  </div>
+  <div id="status-bar">
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text">Disconnected</span>
+    <span id="status-resolution"></span>
+    <button id="debug-toggle" type="button" title="Toggle debug panel (Ctrl+Shift+D)">Debug</button>
+  </div>
+</div>
+
+<div id="debug-panel" hidden>
+  <div id="debug-header">
+    <strong>Debug Events</strong>
+    <span id="debug-count">0 events</span>
+    <button class="debug-action" id="debug-copy" type="button">Copy</button>
+    <button class="debug-action" id="debug-clear" type="button">Clear</button>
+  </div>
+  <pre id="debug-log"></pre>
+</div>
+
+<textarea id="ime-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+
+<script type="module">
+// invoke() calls the Hub's clip API endpoint. Works in subdomain mode:
+//   browser.hub.pinixai.com/api/view.start -> Hub proxies to provider invoke
+async function invoke(command, input) {
+  const resp = await fetch(`/api/${command}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input || {}),
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`invoke ${command} failed (${resp.status}): ${text}`);
+  }
+  return resp.json();
+}
+
+// --- State ---
+let pc = null;
+let dc = null;
+let connected = false;
+let activeTabId = null;
+let lastTabs = [];
+let tabPollTimer = null;
+let lastMouseTraceAt = 0;
+
+let videoEl = document.getElementById("video");
+let btnConnect = document.getElementById("btn-connect");
+let imeInput = document.getElementById("ime-input");
+let videoContainer = document.getElementById("video-container");
+let videoOverlay = document.getElementById("video-overlay");
+let inputOverlay = document.getElementById("input-overlay");
+let isComposing = false;
+
+// UI elements
+const statusDot = document.getElementById("status-dot");
+const statusText = document.getElementById("status-text");
+const statusRes = document.getElementById("status-resolution");
+const urlInput = document.getElementById("url-input");
+const tabBar = document.getElementById("tab-bar");
+const newTabBtn = document.getElementById("new-tab-btn");
+const backBtn = document.getElementById("btn-back");
+const forwardBtn = document.getElementById("btn-forward");
+const reloadBtn = document.getElementById("btn-reload");
+const goBtn = document.getElementById("btn-go");
+const debugToggleBtn = document.getElementById("debug-toggle");
+const debugPanel = document.getElementById("debug-panel");
+const debugLogEl = document.getElementById("debug-log");
+const debugCountEl = document.getElementById("debug-count");
+const debugCopyBtn = document.getElementById("debug-copy");
+const debugClearBtn = document.getElementById("debug-clear");
+
+// --- Debug harness ---
+const debugEvents = [];
+let debugEnabled = localStorage.getItem("bb-view-debug") === "1";
+
+function safeDetail(detail) {
+  if (!detail) return "";
+  try { return JSON.stringify(detail); } catch { return String(detail); }
+}
+
+function debugLine(entry) {
+  const rel = String(entry.ms).padStart(7, " ");
+  const detail = safeDetail(entry.detail);
+  return `${entry.time} +${rel}ms [${entry.tag}] ${entry.event}${detail ? " " + detail : ""}`;
+}
+
+function renderDebugLog() {
+  debugCountEl.textContent = debugEvents.length + " events";
+  if (!debugEnabled) return;
+  debugLogEl.textContent = debugEvents.map(debugLine).join("\n");
+  debugLogEl.scrollTop = debugLogEl.scrollHeight;
+}
+
+function setDebugEnabled(enabled, trigger) {
+  debugEnabled = enabled;
+  localStorage.setItem("bb-view-debug", enabled ? "1" : "0");
+  debugPanel.hidden = !enabled;
+  debugToggleBtn.classList.toggle("active", enabled);
+  debugLog("debug", "toggle", { enabled, trigger });
+  renderDebugLog();
+}
+
+function debugLog(tag, event, detail) {
+  const entry = {
+    time: new Date().toISOString(),
+    ms: Math.round(performance.now()),
+    tag,
+    event,
+    detail: detail || null,
+  };
+  debugEvents.push(entry);
+  if (debugEvents.length > 500) debugEvents.shift();
+  if (debugEnabled) {
+    console.debug("[bb-view]", entry);
+    renderDebugLog();
+  }
+}
+
+function traceMouseMove(detail) {
+  const now = performance.now();
+  if (now - lastMouseTraceAt < 250) return;
+  lastMouseTraceAt = now;
+  debugLog("input", "mouse_move", detail);
+}
+
+// Init debug state
+setDebugEnabled(debugEnabled, "init");
+
+debugToggleBtn.onclick = () => setDebugEnabled(!debugEnabled, "button");
+debugClearBtn.onclick = () => {
+  debugEvents.length = 0;
+  debugLog("debug", "clear", { trigger: "button" });
+};
+debugCopyBtn.onclick = async () => {
+  const text = debugEvents.map(debugLine).join("\n");
+  try {
+    await navigator.clipboard.writeText(text);
+    debugLog("debug", "copy", { events: debugEvents.length, ok: true });
+  } catch (e) {
+    debugLog("debug", "copy_failed", { message: e.message });
+  }
+};
+
+// Ctrl+Shift+D shortcut
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.shiftKey && e.code === "KeyD") {
+    e.preventDefault();
+    e.stopPropagation();
+    setDebugEnabled(!debugEnabled, "shortcut");
+  }
+}, true);
+
+// --- Status ---
+function setStatus(state, text) {
+  debugLog("status", "set", { state, text });
+  statusDot.className = "status-dot " + state;
+  statusText.textContent = text;
+}
+
+function setConnected(state) {
+  connected = state;
+  btnConnect.textContent = state ? "Disconnect" : "Connect";
+  btnConnect.classList.toggle("connected", state);
+  btnConnect.disabled = false;
+  // Video overlay
+  videoOverlay.classList.toggle("hidden", state);
+  if (!state) videoOverlay.textContent = "Click Connect to start";
+  // Input overlay cursor
+  inputOverlay.classList.toggle("active", state);
+  // Tab/URL bar dimming
+  tabBar.classList.toggle("dimmed", !state);
+  document.getElementById("url-bar").classList.toggle("dimmed", !state);
+  if (state) {
+    setStatus("connected", "Connected");
+  } else {
+    setStatus("", "Disconnected");
+  }
+}
+
+// Video resolution display
+videoEl.addEventListener("resize", () => {
+  statusRes.textContent = videoEl.videoWidth + "x" + videoEl.videoHeight;
+  debugLog("video", "resize", { width: videoEl.videoWidth, height: videoEl.videoHeight });
+});
+
+// --- Tab management ---
+function renderTabs(tabs) {
+  tabBar.querySelectorAll(".tab").forEach(el => el.remove());
+  tabs.forEach(tab => {
+    const el = document.createElement("div");
+    el.className = "tab" + (tab.tab === activeTabId ? " active" : "");
+    el.dataset.id = tab.tab;
+
+    const title = document.createElement("span");
+    title.textContent = tab.title || tab.url || "New Tab";
+    title.style.overflow = "hidden";
+    title.style.textOverflow = "ellipsis";
+    el.appendChild(title);
+
+    const close = document.createElement("span");
+    close.className = "tab-close";
+    close.textContent = "\u00d7";
+    close.onclick = async (e) => {
+      e.stopPropagation();
+      debugLog("tab", "close_click", { tab: tab.tab });
+      try {
+        await invoke("view.tab_close", { id: tab.tab });
+        debugLog("tab", "close_done", { tab: tab.tab });
+        await fetchTabs();
+      } catch (err) {
+        debugLog("tab", "close_failed", { tab: tab.tab, message: err.message });
+        setStatus("error", "Close tab failed: " + err.message);
+      }
+    };
+    el.appendChild(close);
+
+    el.onclick = () => selectTab(tab.tab);
+    tabBar.insertBefore(el, newTabBtn);
+  });
+}
+
+async function fetchTabs() {
+  try {
+    debugLog("api", "fetch_tabs_start", { activeTabId });
+    const result = await invoke("view.tab_list", {});
+    const tabs = (result.tabs || []).map((t, i) => ({ ...t, tab: t.id || t.tab, index: i }));
+    lastTabs = tabs;
+    // Update active tab — prefer the viewer's activeTab (the tab being streamed)
+    const viewerActiveTab = result.activeTab || null;
+    if (tabs.length === 0) {
+      activeTabId = null;
+    } else if (viewerActiveTab && tabs.some(t => t.tab === viewerActiveTab)) {
+      activeTabId = viewerActiveTab;
+    } else if (!activeTabId || !tabs.some(t => t.tab === activeTabId)) {
+      activeTabId = tabs[0].tab;
+    }
+    renderTabs(tabs);
+    // Update URL bar with active tab's URL (skip if user is editing)
+    const activeTab = tabs.find(t => t.tab === activeTabId);
+    if (activeTab && activeTab.url && document.activeElement !== urlInput) {
+      urlInput.value = activeTab.url;
+    }
+    debugLog("api", "fetch_tabs_done", { count: tabs.length, activeTabId });
+    return tabs;
+  } catch (err) {
+    debugLog("api", "fetch_tabs_failed", { message: err.message });
+    // Don't clear existing tabs on error
+    renderTabs(lastTabs);
+    return lastTabs;
+  }
+}
+
+async function selectTab(tabId) {
+  if (tabId === activeTabId) return;
+  debugLog("tab", "select_click", { tab: tabId, previous: activeTabId });
+  try {
+    await invoke("view.tab_switch", { id: tabId });
+    activeTabId = tabId;
+    debugLog("tab", "select_done", { tab: tabId });
+    await fetchTabs();
+  } catch (err) {
+    debugLog("tab", "select_failed", { tab: tabId, message: err.message });
+    setStatus("error", "Select tab failed: " + err.message);
+  }
+}
+
+newTabBtn.onclick = async () => {
+  debugLog("tab", "new_click", { activeTabId });
+  try {
+    const result = await invoke("view.tab_new", {});
+    activeTabId = result.id || result.tab;
+    debugLog("tab", "new_done", { tab: result.tab });
+    await fetchTabs();
+  } catch (err) {
+    debugLog("tab", "new_failed", { message: err.message });
+    setStatus("error", "New tab failed: " + err.message);
+  }
+};
+
+// Start tab polling
+function startTabPolling() {
+  if (tabPollTimer) return;
+  tabPollTimer = setInterval(() => { fetchTabs(); }, 5000);
+}
+
+function stopTabPolling() {
+  if (tabPollTimer) {
+    clearInterval(tabPollTimer);
+    tabPollTimer = null;
+  }
+}
+
+// --- URL bar navigation ---
+function normalizeURL(url) {
+  url = url.trim();
+  if (/^(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\])(?::|\/|$)/i.test(url)) {
+    return "http://" + url;
+  }
+  if (/^(https?|about|chrome|file|data|devtools):/i.test(url)) {
+    return url;
+  }
+  return "https://" + url;
+}
+
+async function navigateToURL(url) {
+  if (!url) {
+    debugLog("nav", "ignored", { reason: "empty_url" });
+    return;
+  }
+  url = normalizeURL(url);
+  urlInput.value = url;
+  debugLog("nav", "trigger", { url, trigger: "url_bar" });
+  try {
+    const result = await invoke("view.navigate", { url });
+    debugLog("nav", "done", { url, result });
+    // Refresh tabs after navigation to update titles
+    setTimeout(() => fetchTabs(), 1000);
+  } catch (err) {
+    debugLog("nav", "failed", { url, message: err.message });
+    setStatus("error", "Navigate failed: " + err.message);
+  }
+}
+
+backBtn.onclick = async () => {
+  debugLog("nav", "back_click");
+  try { await invoke("view.back", {}); } catch (err) { debugLog("nav", "back_failed", { message: err.message }); }
+};
+forwardBtn.onclick = async () => {
+  debugLog("nav", "forward_click");
+  try { await invoke("view.forward", {}); } catch (err) { debugLog("nav", "forward_failed", { message: err.message }); }
+};
+reloadBtn.onclick = async () => {
+  debugLog("nav", "reload_click");
+  try { await invoke("view.reload", {}); } catch (err) { debugLog("nav", "reload_failed", { message: err.message }); }
+};
+goBtn.onclick = () => navigateToURL(urlInput.value);
+
+// Prevent URL input keystrokes from being forwarded to remote,
+// AND handle Enter for navigation — single capture-phase listener.
+urlInput.addEventListener("keydown", (e) => {
+  e.stopPropagation();
+  if (e.key === "Enter" && !e.isComposing) {
+    e.preventDefault();
+    debugLog("nav", "enter", { value: urlInput.value });
+    navigateToURL(urlInput.value);
+    urlInput.blur();
+  }
+}, true);
+urlInput.addEventListener("keyup", (e) => {
+  // Let modifier key releases propagate to document so onKeyUp can
+  // forward them to the remote and clear the stuck modifier state.
+  if (e.key === "Meta" || e.key === "Control" || e.key === "Shift" || e.key === "Alt") return;
+  e.stopPropagation();
+}, true);
+
+
+// --- Binary protocol helpers ---
+function packHeader(opcode, payloadLen) {
+  const buf = new ArrayBuffer(3 + payloadLen);
+  const view = new DataView(buf);
+  view.setUint8(0, opcode);
+  view.setUint16(1, payloadLen);
+  return { buf, view };
+}
+
+function sendMouseMove(x, y) {
+  if (!dc || dc.readyState !== "open") return;
+  const { buf, view } = packHeader(0x01, 4);
+  view.setUint16(3, x);
+  view.setUint16(5, y);
+  dc.send(buf);
+}
+
+function sendScroll(dx, dy) {
+  if (!dc || dc.readyState !== "open") return;
+  const { buf, view } = packHeader(0x02, 4);
+  view.setInt16(3, dx);
+  view.setInt16(5, dy);
+  dc.send(buf);
+}
+
+function sendKeyDown(keysym) {
+  if (!dc || dc.readyState !== "open") return;
+  const { buf, view } = packHeader(0x03, 4);
+  view.setUint32(3, keysym);
+  dc.send(buf);
+}
+
+function sendKeyUp(keysym) {
+  if (!dc || dc.readyState !== "open") return;
+  const { buf, view } = packHeader(0x04, 4);
+  view.setUint32(3, keysym);
+  dc.send(buf);
+}
+
+function sendButtonDown(button) {
+  if (!dc || dc.readyState !== "open") return;
+  const { buf, view } = packHeader(0x05, 1);
+  view.setUint8(3, button);
+  dc.send(buf);
+}
+
+function sendButtonUp(button) {
+  if (!dc || dc.readyState !== "open") return;
+  const { buf, view } = packHeader(0x06, 1);
+  view.setUint8(3, button);
+  dc.send(buf);
+}
+
+function sendInsertText(text) {
+  if (!dc || dc.readyState !== "open") return;
+  const encoded = new TextEncoder().encode(text);
+  const { buf, view } = packHeader(0x07, encoded.length);
+  new Uint8Array(buf).set(encoded, 3);
+  dc.send(buf);
+}
+
+// --- Keysym mapping ---
+const SPECIAL_KEYS = {
+  Backspace: 0xFF08, Tab: 0xFF09, Enter: 0xFF0D, Escape: 0xFF1B,
+  Delete: 0xFFFF, Home: 0xFF50, End: 0xFF57,
+  PageUp: 0xFF55, PageDown: 0xFF56,
+  ArrowLeft: 0xFF51, ArrowUp: 0xFF52, ArrowRight: 0xFF53, ArrowDown: 0xFF54,
+  ShiftLeft: 0xFFE1, ShiftRight: 0xFFE2,
+  ControlLeft: 0xFFE3, ControlRight: 0xFFE4,
+  AltLeft: 0xFFE9, AltRight: 0xFFEA,
+  MetaLeft: 0xFFEB, MetaRight: 0xFFEC,
+  CapsLock: 0xFFE5, NumLock: 0xFF7F, ScrollLock: 0xFF14,
+  Insert: 0xFF63, Pause: 0xFF13, PrintScreen: 0xFF61,
+  F1: 0xFFBE, F2: 0xFFBF, F3: 0xFFC0, F4: 0xFFC1,
+  F5: 0xFFC2, F6: 0xFFC3, F7: 0xFFC4, F8: 0xFFC5,
+  F9: 0xFFC6, F10: 0xFFC7, F11: 0xFFC8, F12: 0xFFC9,
+  Space: 0x0020,
+};
+
+function keyToKeysym(e) {
+  if (SPECIAL_KEYS[e.code]) return SPECIAL_KEYS[e.code];
+  if (SPECIAL_KEYS[e.key]) return SPECIAL_KEYS[e.key];
+  // Modifier keys by key name
+  if (e.key === "Shift") return 0xFFE1;
+  if (e.key === "Control") return 0xFFE3;
+  if (e.key === "Alt") return 0xFFE9;
+  if (e.key === "Meta") return 0xFFEB;
+  // Printable ASCII
+  if (e.key.length === 1) {
+    const code = e.key.charCodeAt(0);
+    if (code >= 0x20 && code <= 0x7E) return code;
+  }
+  return 0;
+}
+
+// --- Mouse coordinate mapping ---
+function videoCoords(e) {
+  const rect = videoEl.getBoundingClientRect();
+  const vw = videoEl.videoWidth || 1;
+  const vh = videoEl.videoHeight || 1;
+  // Compute displayed area within the element (object-fit: contain)
+  const scale = Math.min(rect.width / vw, rect.height / vh);
+  const dw = vw * scale;
+  const dh = vh * scale;
+  const ox = (rect.width - dw) / 2;
+  const oy = (rect.height - dh) / 2;
+  const lx = e.clientX - rect.left - ox;
+  const ly = e.clientY - rect.top - oy;
+  const x = Math.round((lx / dw) * vw);
+  const y = Math.round((ly / dh) * vh);
+  return [Math.max(0, Math.min(vw, x)), Math.max(0, Math.min(vh, y))];
+}
+
+function mapButton(e) {
+  // Web API: 0=left, 1=middle, 2=right
+  // bb-viewer expects same 0-indexed: 0=left, 1=middle, 2=right
+  return e.button;
+}
+
+// --- Event handlers ---
+function onMouseMove(e) {
+  if (!connected) return;
+  const [x, y] = videoCoords(e);
+  traceMouseMove({ x, y, buttons: e.buttons });
+  sendMouseMove(x, y);
+}
+
+function onMouseDown(e) {
+  if (!connected) return;
+  e.preventDefault();
+  imeInput.focus();
+  const [x, y] = videoCoords(e);
+  debugLog("input", "mouse_down", { x, y, button: e.button });
+  sendMouseMove(x, y);
+  sendButtonDown(mapButton(e));
+}
+
+function onMouseUp(e) {
+  if (!connected) return;
+  e.preventDefault();
+  debugLog("input", "mouse_up", { button: e.button });
+  sendButtonUp(mapButton(e));
+}
+
+function onWheel(e) {
+  if (!connected) return;
+  e.preventDefault();
+  const dx = Math.round(e.deltaX);
+  const dy = Math.round(e.deltaY);
+  debugLog("input", "wheel", { deltaX: dx, deltaY: dy });
+  sendScroll(dx, dy);
+}
+
+function onContextMenu(e) {
+  if (connected) e.preventDefault();
+}
+
+function onKeyDown(e) {
+  if (!connected) return;
+  if (e.isComposing || e.keyCode === 229) return;
+  // Don't capture if URL input is focused
+  if (document.activeElement === urlInput) return;
+  e.preventDefault();
+  const ks = keyToKeysym(e);
+  if (ks) {
+    debugLog("input", "key_down", { key: e.key, code: e.code, keysym: ks });
+    sendKeyDown(ks);
+  }
+}
+
+function onKeyUp(e) {
+  if (!connected) return;
+  if (e.isComposing || e.keyCode === 229) return;
+  const ks = keyToKeysym(e);
+  if (!ks) return;
+  // Always forward modifier key releases even when URL input is focused,
+  // so the remote doesn't get stuck with a modifier held down.
+  const isModifier = ks >= 0xFFE1 && ks <= 0xFFEE;
+  if (document.activeElement === urlInput && !isModifier) return;
+  e.preventDefault();
+  debugLog("input", "key_up", { key: e.key, code: e.code, keysym: ks });
+  sendKeyUp(ks);
+}
+
+function onCompositionStart() { isComposing = true; debugLog("input", "composition_start"); }
+function onCompositionEnd(e) {
+  isComposing = false;
+  debugLog("input", "composition_end", { data: e.data });
+  if (e.data) sendInsertText(e.data);
+  imeInput.value = "";
+}
+
+// --- WebRTC ---
+async function connect() {
+  if (connected) return;
+  btnConnect.disabled = true;
+  videoOverlay.textContent = "Connecting...";
+  videoOverlay.classList.remove("hidden");
+  setStatus("connecting", "Requesting offer...");
+  debugLog("webrtc", "connect_start");
+  let offer;
+  try {
+    offer = await invoke("view.start", {});
+    debugLog("webrtc", "offer_received", { sdpBytes: offer.offer_sdp ? offer.offer_sdp.length : 0, candidates: (offer.candidates || []).length });
+  } catch (err) {
+    setStatus("error", "Failed: " + (err.message || err));
+    debugLog("webrtc", "offer_failed", { message: err.message });
+    btnConnect.disabled = false;
+    videoOverlay.textContent = "Click Connect to start";
+    return;
+  }
+
+  const iceServers = (offer.ice_servers || []).map(s => ({
+    urls: s.urls || [],
+    username: s.username || undefined,
+    credential: s.credential || undefined,
+  })).filter(s => s.urls.length > 0);
+
+  const config = { iceServers: iceServers.length > 0 ? iceServers : [{ urls: "stun:stun.l.google.com:19302" }] };
+  pc = new RTCPeerConnection(config);
+  debugLog("webrtc", "pc_created", { iceServers: config.iceServers.length });
+
+  pc.ontrack = (e) => {
+    debugLog("webrtc", "track", { kind: e.track.kind, streams: e.streams ? e.streams.length : 0 });
+    if (e.streams && e.streams[0]) {
+      videoEl.srcObject = e.streams[0];
+    } else {
+      const stream = new MediaStream();
+      stream.addTrack(e.track);
+      videoEl.srcObject = stream;
+    }
+    try { videoEl.playoutDelayHint = 0; } catch {}
+    try { videoEl.jitterBufferTarget = 0; } catch {}
+  };
+
+  pc.ondatachannel = (e) => {
+    dc = e.channel;
+    dc.binaryType = "arraybuffer";
+    debugLog("webrtc", "datachannel", { label: dc.label });
+    dc.onopen = () => {
+      debugLog("webrtc", "datachannel_open");
+      setConnected(true);
+      imeInput.focus();
+      // Start tab polling once connected
+      fetchTabs();
+      startTabPolling();
+    };
+    dc.onclose = () => {
+      debugLog("webrtc", "datachannel_close");
+      cleanup();
+    };
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    const state = pc.iceConnectionState;
+    debugLog("webrtc", "ice_state", { state });
+    if (state === "connected" || state === "completed") {
+      setStatus("connected", "Connected");
+    } else if (state === "failed") {
+      setStatus("error", "ICE failed");
+      cleanup();
+    } else if (state === "disconnected") {
+      setStatus("error", "ICE disconnected");
+      cleanup();
+    } else if (state === "checking") {
+      setStatus("connecting", "ICE: " + state);
+    }
+  };
+
+  // Set remote offer
+  setStatus("connecting", "Setting remote offer...");
+  try {
+    await pc.setRemoteDescription({ type: "offer", sdp: offer.offer_sdp });
+    debugLog("webrtc", "set_remote_description_done");
+  } catch (err) {
+    setStatus("error", "SDP error: " + err.message);
+    debugLog("webrtc", "set_remote_description_failed", { message: err.message });
+    cleanup();
+    return;
+  }
+
+  // Add remote ICE candidates
+  const remoteCandidates = offer.candidates || [];
+  for (const c of remoteCandidates) {
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate({
+        candidate: c.candidate,
+        sdpMLineIndex: c.sdpMLineIndex,
+        sdpMid: c.sdpMid || null,
+      }));
+    } catch (err) {
+      debugLog("webrtc", "remote_candidate_failed", { message: err.message });
+    }
+  }
+
+  // Create answer
+  setStatus("connecting", "Creating answer...");
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  debugLog("webrtc", "answer_created", { sdpBytes: answer.sdp.length });
+
+  // Wait for ICE gathering complete
+  const localCandidates = [];
+  await new Promise((resolve) => {
+    if (pc.iceGatheringState === "complete") { resolve(); return; }
+    const timeout = setTimeout(resolve, 5000);
+    pc.onicegatheringstatechange = () => {
+      if (pc.iceGatheringState === "complete") { clearTimeout(timeout); resolve(); }
+    };
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        localCandidates.push({
+          candidate: e.candidate.candidate,
+          sdpMLineIndex: e.candidate.sdpMLineIndex,
+          sdpMid: e.candidate.sdpMid || "",
+        });
+      }
+    };
+  });
+  debugLog("webrtc", "ice_gathering_done", { candidates: localCandidates.length });
+
+  // Send answer
+  setStatus("connecting", "Sending answer...");
+  try {
+    await invoke("view.answer", {
+      answer_sdp: pc.localDescription.sdp,
+      candidates: localCandidates,
+    });
+    debugLog("webrtc", "answer_sent");
+  } catch (err) {
+    setStatus("error", "Answer failed: " + (err.message || err));
+    debugLog("webrtc", "answer_send_failed", { message: err.message });
+    cleanup();
+    return;
+  }
+
+  setStatus("connecting", "Waiting for connection...");
+}
+
+async function disconnect() {
+  debugLog("webrtc", "disconnect");
+  try { await invoke("view.close", {}); } catch {}
+  cleanup();
+}
+
+function cleanup() {
+  debugLog("webrtc", "cleanup");
+  if (dc) { try { dc.close(); } catch {} dc = null; }
+  if (pc) { try { pc.close(); } catch {} pc = null; }
+  if (videoEl.srcObject) {
+    videoEl.srcObject.getTracks().forEach(t => t.stop());
+    videoEl.srcObject = null;
+  }
+  stopTabPolling();
+  setConnected(false);
+}
+
+// --- Event binding ---
+inputOverlay.addEventListener("mousemove", onMouseMove);
+inputOverlay.addEventListener("mousedown", onMouseDown);
+inputOverlay.addEventListener("mouseup", onMouseUp);
+inputOverlay.addEventListener("wheel", onWheel, { passive: false });
+inputOverlay.addEventListener("contextmenu", onContextMenu);
+
+document.addEventListener("keydown", onKeyDown);
+document.addEventListener("keyup", onKeyUp);
+
+imeInput.addEventListener("compositionstart", onCompositionStart);
+imeInput.addEventListener("compositionend", onCompositionEnd);
+
+btnConnect.addEventListener("click", () => {
+  if (connected) disconnect();
+  else connect();
+});
+
+// Focus IME input on overlay click + release all modifiers to clear any
+// stuck state from when focus was elsewhere (URL bar, toolbar, etc.)
+inputOverlay.addEventListener("click", () => {
+  imeInput.focus();
+  const mods = [0xFFE1, 0xFFE2, 0xFFE3, 0xFFE4, 0xFFE9, 0xFFEA, 0xFFEB, 0xFFEC];
+  for (const ks of mods) sendKeyUp(ks);
+});
+
+// Reset all modifier keys when window regains focus — handles Cmd+Tab
+// and other cases where keyUp fires outside our page.
+window.addEventListener("focus", () => {
+  if (!connected) return;
+  const mods = [0xFFE1, 0xFFE2, 0xFFE3, 0xFFE4, 0xFFE9, 0xFFEA, 0xFFEB, 0xFFEC];
+  for (const ks of mods) sendKeyUp(ks);
+});
+
+// Cleanup on page unload
+window.addEventListener("beforeunload", () => {
+  if (connected) {
+    try { invoke("view.close", {}); } catch {}
+    cleanup();
+  }
+});
+
+// Expose debug API on window
+window.__bbViewDebug = {
+  events: debugEvents,
+  enable: () => setDebugEnabled(true, "console"),
+  disable: () => setDebugEnabled(false, "console"),
+  dump: () => debugEvents.map(debugLine).join("\n"),
+};
+
+// Initial UI state: dim tab/URL bar until connected
+tabBar.classList.add("dimmed");
+document.getElementById("url-bar").classList.add("dimmed");
+
+// Initial tab fetch (works even before WebRTC connection)
+fetchTabs();
+</script>
+</body>
+</html>

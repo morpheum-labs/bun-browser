@@ -1,25 +1,49 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { DAEMON_BASE_URL, COMMAND_TIMEOUT, generateId } from "@bun-browser/shared";
-import type { Request, Response } from "@bun-browser/shared";
+import { COMMAND_TIMEOUT, COMMANDS, generateId, readDaemonJson, DAEMON_DIR } from "@bun-browser/shared";
+import type { CommandDef, Request, Response, DaemonInfo } from "@bun-browser/shared";
 import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import path from "node:path";
 import { z } from "zod";
 
 declare const __BUN_BROWSER_VERSION__: string;
 
-const EXT_HINT = [
-  "Chrome extension not connected.",
+const CHROME_NOT_CONNECTED_HINT = [
+  "Chrome is not connected to the daemon.",
   "",
-  "1. Download extension: https://github.com/epiral/bun-browser/releases/latest",
-  "2. Unzip the downloaded file",
-  "3. Open chrome://extensions/ → Enable Developer Mode",
-  "4. Click \"Load unpacked\" → select the unzipped folder",
+  "Make sure Chrome is running and the daemon can connect to it via CDP.",
+  "Run: bun-browser daemon --help for details.",
 ].join("\n");
 
 const sessionOpenedTabs = new Set<string>();
+
+let cachedDaemonInfo: DaemonInfo | null = null;
+
+async function getDaemonInfo(): Promise<DaemonInfo | null> {
+  if (cachedDaemonInfo) return cachedDaemonInfo;
+  const info = await readDaemonJson();
+  if (info) cachedDaemonInfo = info;
+  return info;
+}
+
+function daemonBaseUrl(info: DaemonInfo): string {
+  return `http://${info.host}:${info.port}`;
+}
+
+function daemonHeaders(info: DaemonInfo): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${info.token}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Path helpers
+// ---------------------------------------------------------------------------
 
 function getDaemonPath(): string {
   const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -35,11 +59,20 @@ function getCliPath(): string {
   return resolve(currentDir, "../../cli/dist/index.js");
 }
 
+// ---------------------------------------------------------------------------
+// Daemon lifecycle
+// ---------------------------------------------------------------------------
+
 async function isDaemonRunning(): Promise<boolean> {
+  const info = await getDaemonInfo();
+  if (!info) return false;
   try {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 2000);
-    const res = await fetch(`${DAEMON_BASE_URL}/status`, { signal: controller.signal });
+    const res = await fetch(`${daemonBaseUrl(info)}/status`, {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${info.token}` },
+    });
     clearTimeout(t);
     return res.ok;
   } catch { return false; }
@@ -47,31 +80,64 @@ async function isDaemonRunning(): Promise<boolean> {
 
 async function ensureDaemon(): Promise<void> {
   if (await isDaemonRunning()) return;
-  const child = spawn(process.execPath, [getDaemonPath()], {
+
+  // Invalidate cache — daemon is not running so cached info is stale
+  cachedDaemonInfo = null;
+
+  // Discover CDP port first (auto-launches Chrome if needed)
+  let cdpArgs: string[] = [];
+  try {
+    const cliPath = getCliPath();
+    await new Promise<string>((resolve, reject) => {
+      execFile(process.execPath, [cliPath, "daemon", "status", "--json"], { timeout: 15000 }, (err, stdout) => {
+        if (err) reject(err); else resolve(stdout);
+      });
+    });
+    // If CLI daemon status succeeded, daemon is already running
+    if (await isDaemonRunning()) return;
+  } catch {
+    // CLI failed — daemon not running, try spawning with CDP discovery
+    try {
+      const portFile = path.join(DAEMON_DIR, "browser", "cdp-port");
+      const port = (await readFile(portFile, "utf8")).trim();
+      if (port) cdpArgs = ["--cdp-port", port];
+    } catch {}
+  }
+
+  const child = spawn(process.execPath, [getDaemonPath(), ...cdpArgs], {
     detached: true, stdio: "ignore", env: { ...process.env },
   });
   child.unref();
-  // wait up to 5s
-  for (let i = 0; i < 25; i++) {
+  // wait up to 10s — re-read daemon.json each iteration (daemon writes it on startup)
+  for (let i = 0; i < 50; i++) {
     await new Promise(r => setTimeout(r, 200));
+    cachedDaemonInfo = null; // Force re-read from disk
     if (await isDaemonRunning()) return;
   }
 }
 
+// ---------------------------------------------------------------------------
+// Command transport
+// ---------------------------------------------------------------------------
+
 async function sendCommand(request: Request): Promise<Response> {
   await ensureDaemon();
+  const info = await getDaemonInfo();
+  if (!info) {
+    return { id: request.id, success: false, error: "No daemon.json found. Is the daemon running?" };
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), COMMAND_TIMEOUT);
   try {
-    const response = await fetch(`${DAEMON_BASE_URL}/command`, {
+    const response = await fetch(`${daemonBaseUrl(info)}/command`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: daemonHeaders(info),
       body: JSON.stringify(request),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
     if (response.status === 503) {
-      return { id: request.id, success: false, error: EXT_HINT };
+      return { id: request.id, success: false, error: CHROME_NOT_CONNECTED_HINT };
     }
     return (await response.json()) as Response;
   } catch {
@@ -79,6 +145,10 @@ async function sendCommand(request: Request): Promise<Response> {
     return { id: request.id, success: false, error: "Failed to start daemon. Run manually: bun-browser daemon" };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Result helpers
+// ---------------------------------------------------------------------------
 
 function errorResult(message: string) {
   return {
@@ -96,9 +166,13 @@ function textResult(value: unknown) {
   return { content: [{ type: "text" as const, text }] };
 }
 
-async function runCommand(request: Omit<Request, "id">) {
-  return sendCommand({ id: generateId(), ...request });
+async function runCommand(request: Omit<Request, "id"> & Record<string, unknown>) {
+  return sendCommand({ id: generateId(), ...request } as Request);
 }
+
+// ---------------------------------------------------------------------------
+// Session tab tracking
+// ---------------------------------------------------------------------------
 
 function normalizeTabId(tabId: string | number | undefined): string | undefined {
   if (typeof tabId === "string" && tabId) {
@@ -128,6 +202,10 @@ function rememberSessionTabFromResponse(data: Response["data"]): void {
   if (!data) return;
   rememberSessionTab((data as Response["data"] & { tabId?: string | number }).tabId);
 }
+
+// ---------------------------------------------------------------------------
+// Site CLI helpers
+// ---------------------------------------------------------------------------
 
 function tryParseJson<T>(raw: string): T | null {
   const trimmed = raw.trim();
@@ -215,9 +293,13 @@ async function runSiteCli(args: string[]): Promise<unknown> {
   return parsed ?? result.stdout.trim();
 }
 
+// ---------------------------------------------------------------------------
+// MCP Server
+// ---------------------------------------------------------------------------
+
 const server = new McpServer(
   { name: "bun-browser", version: __BUN_BROWSER_VERSION__ },
-  { instructions: `bun-browser lets you control the user's real Chrome browser — with their login state, cookies, and sessions.
+  { instructions: `bun-browser lets you control the user's real Chrome browser via CDP (Chrome DevTools Protocol).
 
 Your browser is the API. No headless browser, no cookie extraction, no anti-bot bypass.
 
@@ -225,10 +307,17 @@ Key capabilities:
 - browser_snapshot: Read page content via accessibility tree (use ref numbers to interact)
 - browser_click/fill/type: Interact with elements by ref from snapshot
 - browser_eval: Run JavaScript in page context (most powerful — full DOM/fetch access)
-- browser_network: Capture network requests/responses (API reverse engineering)
+- browser_network: Capture network requests/responses (API reverse engineering). Supports incremental queries with since: "last_action"
+- browser_console: Read console messages. Supports since/filter/limit
+- browser_errors: Read JavaScript errors. Supports since/limit
 - browser_screenshot: Visual page capture
-- browser_tab_list/tab_new: Multi-tab support — use tab parameter for concurrent operations
+- browser_tab_list/tab_new: Multi-tab support — use tab parameter (short ID like "c416") for concurrent operations
 - browser_close_all: Close tabs opened by bun-browser during the current MCP session
+
+Tab management:
+- Tab IDs are short hex strings (e.g. "c416") returned by tab_list or open commands
+- Pass tab short ID to any tool to target a specific tab
+- Omit tab to target the active tab
 
 Site adapters (pre-built commands for popular sites):
 - site_list/site_search/site_info: Discover available adapters and their signatures
@@ -240,184 +329,37 @@ Site adapters (pre-built commands for popular sites):
 To create a new site adapter, run: bun-browser guide` },
 );
 
-server.tool(
-  "browser_snapshot",
-  "Get accessibility tree snapshot of the current page",
-  {
-    tab: z.number().optional().describe("Tab ID to target (omit for active tab)"),
-    interactive: z.boolean().optional().describe("Only show interactive elements"),
-  },
-  async ({ tab, interactive }) => {
-    const resp = await runCommand({ action: "snapshot", interactive, tabId: tab });
+// ---------------------------------------------------------------------------
+// Build args→request mapping: remap "tab" → "tabId" for daemon protocol
+// ---------------------------------------------------------------------------
+
+function buildRequest(cmd: CommandDef, args: Record<string, unknown>): Omit<Request, "id"> & Record<string, unknown> {
+  const { tab, ...rest } = args;
+  const request: Record<string, unknown> = { action: cmd.action, ...rest };
+  if (tab !== undefined) {
+    request.tabId = tab;
+  }
+  return request as Omit<Request, "id"> & Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Commands that need special handling — keyed by command name
+// ---------------------------------------------------------------------------
+
+type ToolHandler = (args: Record<string, unknown>) => Promise<{
+  content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>;
+  isError?: boolean;
+}>;
+
+const specialHandlers: Record<string, (cmd: CommandDef) => ToolHandler> = {
+  snapshot: (cmd) => async (args) => {
+    const resp = await runCommand(buildRequest(cmd, args));
     if (!resp.success) return responseError(resp);
     return textResult(resp.data?.snapshotData?.snapshot || "(empty)");
-  }
-);
-
-server.tool(
-  "browser_click",
-  "Click an element by ref",
-  {
-    ref: z.string().describe("Element ref from snapshot"),
-    tab: z.number().optional().describe("Tab ID to target"),
   },
-  async ({ ref, tab }) => {
-    const resp = await runCommand({ action: "click", ref, tabId: tab });
-    if (!resp.success) return responseError(resp);
-    return textResult(resp.data || "Clicked");
-  }
-);
 
-server.tool(
-  "browser_fill",
-  "Fill text into an input",
-  {
-    ref: z.string().describe("Element ref from snapshot"),
-    text: z.string().describe("Text to fill"),
-    tab: z.number().optional().describe("Tab ID to target"),
-  },
-  async ({ ref, text, tab }) => {
-    const resp = await runCommand({ action: "fill", ref, text, tabId: tab });
-    if (!resp.success) return responseError(resp);
-    return textResult(resp.data || "Filled");
-  }
-);
-
-server.tool(
-  "browser_type",
-  "Type text into an input without clearing",
-  {
-    ref: z.string().describe("Element ref from snapshot"),
-    text: z.string().describe("Text to type"),
-    tab: z.number().optional().describe("Tab ID to target"),
-  },
-  async ({ ref, text, tab }) => {
-    const resp = await runCommand({ action: "type", ref, text, tabId: tab });
-    if (!resp.success) return responseError(resp);
-    return textResult(resp.data || "Typed");
-  }
-);
-
-server.tool(
-  "browser_open",
-  "Navigate to a URL",
-  {
-    url: z.string().describe("URL to open"),
-    tab: z.number().optional().describe("Tab ID to target"),
-  },
-  async ({ url, tab }) => {
-    const resp = await runCommand({ action: "open", url, tabId: tab });
-    if (!resp.success) return responseError(resp);
-    if (tab === undefined) {
-      rememberSessionTabFromResponse(resp.data);
-    }
-    return textResult(resp.data || `Opened ${url}`);
-  }
-);
-
-server.tool(
-  "browser_tab_list",
-  "List all tabs",
-  {},
-  async () => {
-    const resp = await runCommand({ action: "tab_list" });
-    if (!resp.success) return responseError(resp);
-    return textResult(resp.data?.tabs || []);
-  }
-);
-
-server.tool(
-  "browser_tab_new",
-  "Open a new tab",
-  {
-    url: z.string().optional().describe("Optional URL to open"),
-  },
-  async ({ url }) => {
-    const resp = await runCommand({ action: "tab_new", url });
-    if (!resp.success) return responseError(resp);
-    rememberSessionTabFromResponse(resp.data);
-    return textResult(resp.data || "Opened new tab");
-  }
-);
-
-server.tool(
-  "browser_press",
-  "Press a keyboard key",
-  {
-    key: z.string().describe("Key name to press, e.g. Enter or Control+a"),
-    tab: z.number().optional().describe("Tab ID to target"),
-  },
-  async ({ key, tab }) => {
-    const parts = key.split("+");
-    const modifierNames = new Set(["Control", "Alt", "Shift", "Meta"]);
-    const modifiers = parts.filter((part) => modifierNames.has(part));
-    const mainKey = parts.find((part) => !modifierNames.has(part));
-    if (!mainKey) return errorResult("Invalid key format");
-    const resp = await runCommand({ action: "press", key: mainKey, modifiers, tabId: tab });
-    if (!resp.success) return responseError(resp);
-    return textResult(resp.data || `Pressed ${key}`);
-  }
-);
-
-server.tool(
-  "browser_scroll",
-  "Scroll the page",
-  {
-    direction: z.enum(["up", "down", "left", "right"]).describe("Scroll direction"),
-    pixels: z.number().optional().default(500).describe("Scroll distance in pixels"),
-    tab: z.number().optional().describe("Tab ID to target"),
-  },
-  async ({ direction, pixels, tab }) => {
-    const resp = await runCommand({ action: "scroll", direction, pixels, tabId: tab });
-    if (!resp.success) return responseError(resp);
-    return textResult(resp.data || `Scrolled ${direction} ${pixels}px`);
-  }
-);
-
-server.tool(
-  "browser_eval",
-  "Execute JavaScript in page context",
-  {
-    script: z.string().describe("JavaScript source to execute"),
-    tab: z.number().optional().describe("Tab ID to target"),
-  },
-  async ({ script, tab }) => {
-    const resp = await runCommand({ action: "eval", script, tabId: tab });
-    if (!resp.success) return responseError(resp);
-    return textResult(resp.data?.result ?? null);
-  }
-);
-
-server.tool(
-  "browser_network",
-  "Inspect or clear network activity",
-  {
-    command: z.enum(["requests", "clear"]).describe("Network command"),
-    filter: z.string().optional().describe("Optional URL substring filter"),
-    withBody: z.boolean().optional().describe("Include request and response bodies"),
-    tab: z.number().optional().describe("Tab ID to target"),
-  },
-  async ({ command, filter, withBody, tab }) => {
-    const resp = await runCommand({
-      action: "network",
-      networkCommand: command,
-      filter,
-      withBody,
-      tabId: tab,
-    });
-    if (!resp.success) return responseError(resp);
-    return textResult(command === "requests" ? resp.data?.networkRequests || [] : resp.data || "Cleared");
-  }
-);
-
-server.tool(
-  "browser_screenshot",
-  "Take a screenshot",
-  {
-    tab: z.number().optional().describe("Tab ID to target"),
-  },
-  async ({ tab }) => {
-    const resp = await runCommand({ action: "screenshot", tabId: tab });
+  screenshot: (cmd) => async (args) => {
+    const resp = await runCommand(buildRequest(cmd, args));
     if (!resp.success) return responseError(resp);
     const dataUrl = resp.data?.dataUrl;
     if (typeof dataUrl !== "string") return errorResult("Screenshot data missing");
@@ -428,37 +370,172 @@ server.tool(
         mimeType: "image/png",
       }],
     };
-  }
-);
-
-server.tool(
-  "browser_get",
-  "Get element text or attribute",
-  {
-    attribute: z.enum(["text", "url", "title", "value", "html"]).describe("Attribute to retrieve"),
-    ref: z.string().optional().describe("Optional element ref"),
-    tab: z.number().optional().describe("Tab ID to target"),
   },
-  async ({ attribute, ref, tab }) => {
-    const resp = await runCommand({ action: "get", attribute, ref, tabId: tab });
+
+  eval: (cmd) => async (args) => {
+    const resp = await runCommand(buildRequest(cmd, args));
+    if (!resp.success) return responseError(resp);
+    return textResult(resp.data?.result ?? null);
+  },
+
+  get: (cmd) => async (args) => {
+    const resp = await runCommand(buildRequest(cmd, args));
     if (!resp.success) return responseError(resp);
     return textResult(resp.data?.value ?? "");
-  }
-);
-
-server.tool(
-  "browser_close",
-  "Close the current or specified tab",
-  {
-    tab: z.number().optional().describe("Tab ID to close"),
   },
-  async ({ tab }) => {
-    const resp = await runCommand({ action: tab === undefined ? "close" : "tab_close", tabId: tab });
+
+  tab_list: (cmd) => async (args) => {
+    const resp = await runCommand(buildRequest(cmd, args));
     if (!resp.success) return responseError(resp);
-    forgetSessionTab(tab);
+    return textResult(resp.data?.tabs || []);
+  },
+
+  open: (cmd) => async (args) => {
+    const resp = await runCommand(buildRequest(cmd, args));
+    if (!resp.success) return responseError(resp);
+    if (args.tab === undefined) {
+      rememberSessionTabFromResponse(resp.data);
+    }
+    return textResult(resp.data || `Opened ${args.url}`);
+  },
+
+  tab_new: (cmd) => async (args) => {
+    const resp = await runCommand(buildRequest(cmd, args));
+    if (!resp.success) return responseError(resp);
+    rememberSessionTabFromResponse(resp.data);
+    return textResult(resp.data || "Opened new tab");
+  },
+
+  close: (_cmd) => async (args) => {
+    const action = args.tab === undefined ? "close" : "tab_close";
+    const { tab, ...rest } = args;
+    const request: Record<string, unknown> = { action, ...rest };
+    if (tab !== undefined) request.tabId = tab;
+    const resp = await runCommand(request as Omit<Request, "id"> & Record<string, unknown>);
+    if (!resp.success) return responseError(resp);
+    forgetSessionTab(args.tab as string | undefined);
     return textResult(resp.data || "Closed tab");
+  },
+
+  press: (_cmd) => async (args) => {
+    const key = args.key as string;
+    const parts = key.split("+");
+    const modifierNames = new Set(["Control", "Alt", "Shift", "Meta"]);
+    const modifiers = parts.filter((part) => modifierNames.has(part));
+    const mainKey = parts.find((part) => !modifierNames.has(part));
+    if (!mainKey) return errorResult("Invalid key format");
+    const { tab, ...rest } = args;
+    const request: Record<string, unknown> = {
+      action: "press",
+      ...rest,
+      key: mainKey,
+      modifiers,
+    };
+    if (tab !== undefined) request.tabId = tab;
+    const resp = await runCommand(request as Omit<Request, "id"> & Record<string, unknown>);
+    if (!resp.success) return responseError(resp);
+    return textResult(resp.data || `Pressed ${key}`);
+  },
+
+  wait: (_cmd) => async (args) => {
+    const ms = args.ms ?? (args as Record<string, unknown>).time ?? 1000;
+    const { tab, ...rest } = args;
+    const request: Record<string, unknown> = {
+      action: "wait",
+      waitType: "time",
+      ...rest,
+      ms,
+    };
+    // Remove legacy arg name if present
+    delete (request as Record<string, unknown>).time;
+    if (tab !== undefined) request.tabId = tab;
+    const resp = await runCommand(request as Omit<Request, "id"> & Record<string, unknown>);
+    if (!resp.success) return responseError(resp);
+    return textResult(resp.data || `Waited ${ms}ms`);
+  },
+
+  network: (cmd) => async (args) => {
+    // Backward compat: accept old "command" arg name
+    const networkCommand = args.networkCommand ?? (args as Record<string, unknown>).command ?? "requests";
+    const mappedArgs = { ...args, networkCommand };
+    delete (mappedArgs as Record<string, unknown>).command;
+    const resp = await runCommand(buildRequest(cmd, mappedArgs));
+    if (!resp.success) return responseError(resp);
+    const nc = networkCommand as string | undefined;
+    if (nc === "requests" || nc === undefined) {
+      const data = resp.data as Record<string, unknown>;
+      return textResult({
+        requests: data?.networkRequests || data?.requests || [],
+        cursor: data?.cursor,
+      });
+    }
+    return textResult(resp.data || "Done");
+  },
+
+  console: (cmd) => async (args) => {
+    // Backward compat: accept old "command" arg name
+    const consoleCommand = args.consoleCommand ?? (args as Record<string, unknown>).command ?? "get";
+    const mappedArgs = { ...args, consoleCommand };
+    delete (mappedArgs as Record<string, unknown>).command;
+    const resp = await runCommand(buildRequest(cmd, mappedArgs));
+    if (!resp.success) return responseError(resp);
+    const cc = consoleCommand as string | undefined;
+    if (cc === "get" || cc === undefined) {
+      const data = resp.data as Record<string, unknown>;
+      return textResult({
+        messages: data?.consoleMessages || data?.messages || [],
+        cursor: data?.cursor,
+      });
+    }
+    return textResult(resp.data || "Cleared");
+  },
+
+  errors: (cmd) => async (args) => {
+    // Backward compat: accept old "command" arg name
+    const errorsCommand = args.errorsCommand ?? (args as Record<string, unknown>).command ?? "get";
+    const mappedArgs = { ...args, errorsCommand };
+    delete (mappedArgs as Record<string, unknown>).command;
+    const resp = await runCommand(buildRequest(cmd, mappedArgs));
+    if (!resp.success) return responseError(resp);
+    const ec = errorsCommand as string | undefined;
+    if (ec === "get" || ec === undefined) {
+      const data = resp.data as Record<string, unknown>;
+      return textResult({
+        errors: data?.jsErrors || data?.errors || [],
+        cursor: data?.cursor,
+      });
+    }
+    return textResult(resp.data || "Cleared");
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Auto-generate tools from COMMANDS registry
+// ---------------------------------------------------------------------------
+
+for (const cmd of COMMANDS) {
+  // Site commands use CLI, not daemon — handled separately below
+  if (cmd.category === "site") continue;
+
+  const toolName = "browser_" + cmd.name;
+  const handler = specialHandlers[cmd.name];
+
+  if (handler) {
+    // Command with special handling
+    server.tool(toolName, cmd.description, cmd.args.shape, handler(cmd));
+  } else {
+    // Standard command: send to daemon and return data
+    server.tool(toolName, cmd.description, cmd.args.shape, async (args: Record<string, unknown>) => {
+      const resp = await runCommand(buildRequest(cmd, args));
+      if (!resp.success) return responseError(resp);
+      return textResult(resp.data || "Done");
+    });
   }
-);
+}
+
+// ---------------------------------------------------------------------------
+// browser_close_all — session-scoped, not in COMMANDS registry
+// ---------------------------------------------------------------------------
 
 server.tool(
   "browser_close_all",
@@ -497,33 +574,9 @@ server.tool(
   }
 );
 
-server.tool(
-  "browser_hover",
-  "Hover over an element",
-  {
-    ref: z.string().describe("Element ref from snapshot"),
-    tab: z.number().optional().describe("Tab ID to target"),
-  },
-  async ({ ref, tab }) => {
-    const resp = await runCommand({ action: "hover", ref, tabId: tab });
-    if (!resp.success) return responseError(resp);
-    return textResult(resp.data || "Hovered");
-  }
-);
-
-server.tool(
-  "browser_wait",
-  "Wait for a number of milliseconds",
-  {
-    time: z.number().describe("Time to wait in milliseconds"),
-    tab: z.number().optional().describe("Tab ID to target"),
-  },
-  async ({ time, tab }) => {
-    const resp = await runCommand({ action: "wait", waitType: "time", ms: time, tabId: tab });
-    if (!resp.success) return responseError(resp);
-    return textResult(resp.data || `Waited ${time}ms`);
-  }
-);
+// ---------------------------------------------------------------------------
+// Site tools — route through CLI instead of daemon
+// ---------------------------------------------------------------------------
 
 server.tool(
   "site_list",
@@ -598,7 +651,7 @@ server.tool(
     name: z.string().describe("Adapter name, e.g. twitter/search"),
     args: z.array(z.string()).optional().describe("Positional arguments in adapter-defined order"),
     namedArgs: z.record(z.string()).optional().describe("Named adapter arguments passed as --key value"),
-    tab: z.number().optional().describe("Optional tab ID to target"),
+    tab: z.string().optional().describe("Optional tab short ID to target"),
     openclaw: z.boolean().optional().describe("Prefer the OpenClaw browser instead of the extension flow"),
   },
   async ({ name, args, namedArgs, tab, openclaw }) => {
@@ -643,6 +696,10 @@ server.tool(
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// Start
+// ---------------------------------------------------------------------------
 
 export async function startMcpServer() {
   const transport = new StdioServerTransport();

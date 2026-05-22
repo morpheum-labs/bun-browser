@@ -50,8 +50,6 @@ bun-browser flips this: **instead of forcing websites to provide machine interfa
 
 ```bash
 npm install -g bun-browser
-# or
-bun add -g bun-browser
 ```
 
 ### Use
@@ -73,13 +71,6 @@ bun-browser site xueqiu/hot-stock 5 --openclaw --jq '.items[] | {name, changePer
 
 Skill on ClawHub: [bun-browser-openclaw](https://clawhub.ai/yan5xu/bun-browser)
 
-### Chrome Extension (standalone mode)
-
-For use without OpenClaw (Claude Code MCP, standalone CLI):
-
-1. Download from [Releases](https://github.com/epiral/bun-browser/releases/latest)
-2. Unzip → `chrome://extensions/` → Developer Mode → Load unpacked
-
 ### MCP (Claude Code / Cursor)
 
 ```json
@@ -92,8 +83,6 @@ For use without OpenClaw (Claude Code MCP, standalone CLI):
   }
 }
 ```
-
-With Bun: `"command": "bunx"`, `"args": ["bun-browser", "--mcp"]`.
 
 ## 36 platforms, 103 commands
 
@@ -176,7 +165,7 @@ bun-browser site info xueqiu/stock   # view adapter args, example, domain
 
 ## Daemon configuration
 
-The daemon binds to `localhost:19824` by default. You can customize the host with `--host`:
+The daemon binds to `127.0.0.1:19824` by default. You can customize the host with `--host`:
 
 ```bash
 bun-browser daemon --host 127.0.0.1    # IPv4 only (fix macOS IPv6 issues)
@@ -189,20 +178,15 @@ bun-browser daemon --host 0.0.0.0      # listen on all interfaces (for Tailscale
 AI Agent (Claude Code, Codex, Cursor, etc.)
        │ CLI or MCP (stdio)
        ▼
-bun-browser CLI ──HTTP──▶ Daemon ──SSE──▶ Chrome Extension
-                                              │
-                                              ▼ chrome.debugger (CDP)
-                                         Your Real Browser
-```
-
-## Development
-
-This repo uses [Bun](https://bun.sh) for installs and scripts:
-
-```bash
-bun install
-bun run build
-bun run test
+bun-browser CLI ──HTTP──▶ Daemon ──CDP WebSocket──▶ Your Real Browser
+                           │
+                    ┌──────┴──────┐
+                    │ Per-tab     │
+                    │ event cache │
+                    │ (network,   │
+                    │  console,   │
+                    │  errors)    │
+                    └─────────────┘
 ```
 
 ## License

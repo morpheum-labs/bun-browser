@@ -11,13 +11,14 @@
   "scripts": {
     "build": "bunx --bun tsup",
     "dev": "bunx --bun tsup --watch",
-    "test": "bun test src/openclaw-json.test.ts src/openclaw-bridge.test.ts"
+    "test": "bun test src/openclaw-json.test.ts src/openclaw-bridge.test.ts && bun test src/__tests__/daemon-startup.test.ts"
   },
   "dependencies": {
     "@bun-browser/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "tsx": "^4.20.6",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0",
     "ws": "^8.19.0"

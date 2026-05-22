@@ -10,16 +10,21 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "bunx --bun tsup",
     "dev": "bunx --bun tsup --watch",
     "clean": "rm -rf dist",
-    "lint": "bunx --bun eslint src tsup.config.ts"
+    "lint": "eslint src tsup.config.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsup": "^8.3.0",
     "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
   }
 }

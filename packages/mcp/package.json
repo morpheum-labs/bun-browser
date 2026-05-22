@@ -6,7 +6,7 @@
   "scripts": {
     "build": "bunx --bun tsup",
     "dev": "bunx --bun tsup --watch",
-    "lint": "bunx --bun eslint src tsup.config.ts"
+    "lint": "eslint src tsup.config.ts"
   },
   "dependencies": {
     "@bun-browser/shared": "workspace:*",

@@ -25,7 +25,6 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
-bun-debug.log*
 
 # Environment
 .env
@@ -34,4 +33,3 @@ bun-debug.log*
 
 # Test coverage
 coverage/
-issue.log

@@ -35,6 +35,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY turbo.json tsconfig.base.json tsup.config.ts ./
 COPY packages ./packages
+COPY bin ./bin
 RUN bun install --frozen-lockfile \
     && bun run build \
     && printf '%s\n' '#!/bin/sh' 'exec bun /app/dist/cli.js "$@"' > /usr/local/bin/bun-browser \

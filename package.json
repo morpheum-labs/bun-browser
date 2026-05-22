@@ -1,28 +1,28 @@
 {
   "name": "bun-browser",
-  "version": "0.10.2",
+  "version": "0.11.6",
   "description": "Your browser is the API. CLI + MCP server for AI agents to control Chrome with your login state.",
   "type": "module",
   "bin": {
     "bun-browser": "./dist/cli.js",
-    "bun-browser-mcp": "./dist/mcp.js"
+    "bun-browser-mcp": "./dist/mcp.js",
+    "bun-browser-provider": "./dist/provider.js"
   },
   "main": "./dist/cli.js",
   "files": [
     "dist",
-    "extension",
+    "packages/shared/buildDomTree.js",
     "README.md",
     "LICENSE"
   ],
   "workspaces": ["packages/*"],
   "scripts": {
     "build": "bun node_modules/turbo/bin/turbo run build && bun run build:release",
-    "build:release": "bunx --bun tsup && bun run build:extension",
-    "build:extension": "rm -rf extension && cp -r packages/extension/dist extension",
+    "build:release": "bunx --bun tsup",
     "dev": "bun node_modules/turbo/bin/turbo run dev",
     "test": "bun node_modules/turbo/bin/turbo run test",
     "lint": "bun node_modules/turbo/bin/turbo run lint",
-    "clean": "bun node_modules/turbo/bin/turbo run clean && rm -rf node_modules dist extension",
+    "clean": "bun node_modules/turbo/bin/turbo run clean && rm -rf node_modules dist",
     "prepublishOnly": "bun run build:release"
   },
   "keywords": [
@@ -31,7 +31,6 @@
     "ai",
     "agent",
     "chrome",
-    "extension",
     "cli",
     "puppeteer",
     "playwright",
@@ -58,6 +57,7 @@
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-node": "^2.1.1",
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "@pinixai/hub-client": "^0.2.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "ws": "^8.18.0"

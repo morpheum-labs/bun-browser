@@ -15,7 +15,7 @@ import { ensureDaemonRunning } from "../daemon-manager.js";
 
 export interface ScreenshotOptions {
   json?: boolean;
-  tabId?: number;
+  tabId?: string | number;
 }
 
 /**
@@ -58,24 +58,26 @@ export async function screenshotCommand(
     id: generateId(),
     action: "screenshot",
     tabId: options.tabId,
-  };
+    includeBase64: true,
+  } as Request;
 
   // 发送请求
   const response: Response = await sendCommand(request);
 
   // 处理结果
-  if (response.success && response.data?.dataUrl) {
-    const dataUrl = response.data.dataUrl as string;
-    
-    // 保存文件
-    saveBase64Image(dataUrl, filePath);
+  if (response.success && (response.data?.dataUrl || response.data?.path)) {
+    const dataUrl = response.data.dataUrl as string | undefined;
+
+    if (dataUrl) {
+      saveBase64Image(dataUrl, filePath);
+    }
 
     // 输出结果
     if (options.json) {
       console.log(JSON.stringify({
         success: true,
         path: filePath,
-        base64: dataUrl,
+        pinixPath: response.data.path,
       }, null, 2));
     } else {
       console.log(`截图已保存: ${filePath}`);

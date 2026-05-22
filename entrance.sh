@@ -64,10 +64,10 @@ google-chrome \
     --disable-dev-shm-usage \
     --disable-gpu \
     --remote-debugging-port=9222 \
-    --load-extension=/app/extension \
     --user-data-dir="${CHROME_USER_DATA}" \
     --start-maximized \
     --no-first-run &
 
 sleep 6
-exec bun-browser daemon --host 0.0.0.0
+export BUN_BROWSER_CDP_URL=http://127.0.0.1:9222
+exec bun-browser daemon --host 0.0.0.0 --cdp-port 9222

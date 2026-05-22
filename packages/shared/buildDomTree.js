@@ -101,6 +101,14 @@ window.buildDomTree = (
 
   const HIGHLIGHT_CONTAINER_ID = 'playwright-highlight-container';
 
+  // Clean up any previous highlights before building a new tree
+  if (window._highlightCleanupFunctions && window._highlightCleanupFunctions.length) {
+    window._highlightCleanupFunctions.forEach(fn => { try { fn(); } catch {} });
+    window._highlightCleanupFunctions = [];
+  }
+  const existingContainer = document.getElementById(HIGHLIGHT_CONTAINER_ID);
+  if (existingContainer) existingContainer.remove();
+
   // Add a WeakMap cache for XPath strings
   const xpathCache = new WeakMap();
 
@@ -349,18 +357,6 @@ window.buildDomTree = (
       }
     }
   }
-
-  // // Add this function to perform cleanup when needed
-  // function cleanupHighlights() {
-  //   if (window._highlightCleanupFunctions && window._highlightCleanupFunctions.length) {
-  //     window._highlightCleanupFunctions.forEach(fn => fn());
-  //     window._highlightCleanupFunctions = [];
-  //   }
-
-  //   // Also remove the container
-  //   const container = document.getElementById(HIGHLIGHT_CONTAINER_ID);
-  //   if (container) container.remove();
-  // }
 
   /**
    * Gets the position of an element in its parent.

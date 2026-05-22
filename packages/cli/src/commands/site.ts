@@ -32,14 +32,14 @@ function checkCliUpdate(): void {
     const current = execSync("bun-browser --version", { timeout: 3000, stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
     const latest = execSync("npm view bun-browser version", { timeout: 5000, stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
     if (latest && current && latest !== current && latest.localeCompare(current, undefined, { numeric: true }) > 0) {
-      console.log(`\n📦 bun-browser ${latest} available (current: ${current}). Run: npm install -g bun-browser or bun add -g bun-browser`);
+      console.log(`\n📦 bun-browser ${latest} available (current: ${current}). Run: npm install -g bun-browser`);
     }
   } catch {}
 }
 
 export interface SiteOptions {
   json?: boolean;
-  tabId?: number;
+  tabId?: string | number;
   days?: number;
   jq?: string;
   openclaw?: boolean;
@@ -569,6 +569,15 @@ async function siteRun(
       console.error(`  Usage: bun-browser site ${name} ${usage}`);
       if (site.example) console.error(`  Example: ${site.example}`);
       process.exit(1);
+    }
+  }
+
+  // Warn if local override is shadowing a community adapter
+  if (site.source === "local" && !options.json) {
+    const communityVersion = scanSites(COMMUNITY_SITES_DIR, "community").find(s => s.name === name);
+    if (communityVersion) {
+      console.error(`[local override] ${name} — ${site.filePath}`);
+      console.error(`  Community version also exists. Run \`bun-browser site update\` to check for updates.`);
     }
   }
 
