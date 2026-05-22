@@ -288,19 +288,19 @@ bun-browser site platform/command "test query"
 
 ```bash
 # 方式 A：使用 gh CLI
-git clone https://github.com/epiral/bb-sites && cd bb-sites
+git clone https://github.com/clawhubmx/claw-bun-mcp && cd claw-bun-mcp
 git checkout -b feat-platform
 # 添加 adapter 文件
 git push -u origin feat-platform
-gh pr create --repo epiral/bb-sites
+gh pr create --repo clawhubmx/claw-bun-mcp
 
 # 方式 B：使用 bun-browser 自身
-bun-browser site github/fork epiral/bb-sites
-git clone https://github.com/YOUR_USER/bb-sites && cd bb-sites
+bun-browser site github/fork clawhubmx/claw-bun-mcp
+git clone https://github.com/YOUR_USER/claw-bun-mcp && cd claw-bun-mcp
 git checkout -b feat-platform
 # 添加 adapter 文件
 git push -u origin feat-platform
-bun-browser site github/pr-create epiral/bb-sites --title "feat(platform): add adapters" --head "YOUR_USER:feat-platform"
+bun-browser site github/pr-create clawhubmx/claw-bun-mcp --title "feat(platform): add adapters" --head "YOUR_USER:feat-platform"
 ```
 
 ## 错误处理规范
@@ -326,8 +326,8 @@ return {error: 'Rate limited', hint: 'Try again in 60 seconds'};
 
 ```bash
 # 通过 gh CLI
-gh issue create --repo epiral/bb-sites --title "[adapter-name] 描述"
+gh issue create --repo clawhubmx/claw-bun-mcp --title "[adapter-name] 描述"
 
 # 通过 bun-browser
-bun-browser site github/issue-create epiral/bb-sites --title "[adapter-name] 描述"
+bun-browser site github/issue-create clawhubmx/claw-bun-mcp --title "[adapter-name] 描述"
 ```

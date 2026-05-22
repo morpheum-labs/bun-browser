@@ -10,10 +10,17 @@
  *
  * 目录：
  *   ~/.bun-browser/sites/       私有 adapter（优先）
- *   ~/.bun-browser/bb-sites/    社区 adapter（bun-browser site update 拉取）
+ *   ~/.bun-browser/bb-sites/    社区 adapter（bun-browser site update 拉取 claw-bun-mcp）
  */
 
-import { generateId, type Request, type Response, type TabInfo } from "@bun-browser/shared";
+import {
+  DEFAULT_COMMUNITY_SITES_GH_REPO,
+  DEFAULT_COMMUNITY_SITES_REPO,
+  generateId,
+  type Request,
+  type Response,
+  type TabInfo,
+} from "@bun-browser/shared";
 import { handleJqResponse, sendCommand } from "../client.js";
 import { getHistoryDomains } from "../history-sqlite.js";
 import { ensureDaemonRunning } from "../daemon-manager.js";
@@ -25,7 +32,8 @@ import { execSync } from "node:child_process";
 const BB_DIR = join(homedir(), ".bun-browser");
 const LOCAL_SITES_DIR = join(BB_DIR, "sites");
 const COMMUNITY_SITES_DIR = join(BB_DIR, "bb-sites");
-const COMMUNITY_REPO = "https://github.com/epiral/bb-sites.git";
+const COMMUNITY_REPO = process.env.BUN_BROWSER_SITES_REPO ?? DEFAULT_COMMUNITY_SITES_REPO;
+const COMMUNITY_GH_REPO = process.env.BUN_BROWSER_SITES_GH_REPO ?? DEFAULT_COMMUNITY_SITES_GH_REPO;
 
 function checkCliUpdate(): void {
   try {
@@ -624,15 +632,15 @@ async function siteRun(
         ? `Please log in to https://${site.domain} in your OpenClaw browser first, then retry.`
         : undefined;
       const hint = loginHint || errObj.hint;
-      const reportHint = `If this is an adapter bug, report via: gh issue create --repo epiral/bb-sites --title "[${name}] <description>" OR: bun-browser site github/issue-create epiral/bb-sites --title "[${name}] <description>"`;
+      const reportHint = `If this is an adapter bug, report via: gh issue create --repo ${COMMUNITY_GH_REPO} --title "[${name}] <description>" OR: bun-browser site github/issue-create ${COMMUNITY_GH_REPO} --title "[${name}] <description>"`;
 
       if (options.json) {
         console.log(JSON.stringify({ id: "openclaw", success: false, error: errObj.error, hint, reportHint }));
       } else {
         console.error(`[error] site ${name}: ${errObj.error}`);
         if (hint) console.error(`  Hint: ${hint}`);
-        console.error(`  Report: gh issue create --repo epiral/bb-sites --title "[${name}] ..."`);
-        console.error(`     or: bun-browser site github/issue-create epiral/bb-sites --title "[${name}] ..."`);
+        console.error(`  Report: gh issue create --repo ${COMMUNITY_GH_REPO} --title "[${name}] ..."`);
+        console.error(`     or: bun-browser site github/issue-create ${COMMUNITY_GH_REPO} --title "[${name}] ..."`);
       }
       process.exit(1);
     }
@@ -728,15 +736,15 @@ async function siteRun(
       ? `Please log in to https://${site.domain} in your browser first, then retry.`
       : undefined;
     const hint = loginHint || errObj.hint;
-    const reportHint = `If this is an adapter bug, report via: gh issue create --repo epiral/bb-sites --title "[${name}] <description>" OR: bun-browser site github/issue-create epiral/bb-sites --title "[${name}] <description>"`;
+    const reportHint = `If this is an adapter bug, report via: gh issue create --repo ${COMMUNITY_GH_REPO} --title "[${name}] <description>" OR: bun-browser site github/issue-create ${COMMUNITY_GH_REPO} --title "[${name}] <description>"`;
 
     if (options.json) {
       console.log(JSON.stringify({ id: evalReq.id, success: false, error: errObj.error, hint, reportHint }));
     } else {
       console.error(`[error] site ${name}: ${errObj.error}`);
       if (hint) console.error(`  Hint: ${hint}`);
-      console.error(`  Report: gh issue create --repo epiral/bb-sites --title "[${name}] ..."`);
-      console.error(`     or: bun-browser site github/issue-create epiral/bb-sites --title "[${name}] ..."`);
+      console.error(`  Report: gh issue create --repo ${COMMUNITY_GH_REPO} --title "[${name}] ..."`);
+      console.error(`     or: bun-browser site github/issue-create ${COMMUNITY_GH_REPO} --title "[${name}] ..."`);
     }
     process.exit(1);
   }
@@ -788,8 +796,8 @@ export async function siteCommand(
   bun-browser site search reddit
 
 创建新 adapter: bun-browser guide
-报告问题: gh issue create --repo epiral/bb-sites --title "[adapter-name] 描述"
-贡献社区: https://github.com/epiral/bb-sites`);
+报告问题: gh issue create --repo ${COMMUNITY_GH_REPO} --title "[adapter-name] 描述"
+贡献社区: https://github.com/${COMMUNITY_GH_REPO}`);
     return;
   }
 

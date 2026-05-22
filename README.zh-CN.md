@@ -29,7 +29,7 @@ bun-browser site youtube/transcript VIDEO_ID      # YouTube 字幕全文
 bun-browser site stackoverflow/search "async"     # 搜 StackOverflow
 ```
 
-**36 个平台，103 个命令，全部用你真实浏览器的登录态。** [完整列表 →](https://github.com/epiral/bb-sites)
+**36 个平台，103 个命令，全部用你真实浏览器的登录态。** [完整列表 →](https://github.com/clawhubmx/claw-bun-mcp)
 
 ## 核心理念
 
@@ -86,7 +86,7 @@ ClawHub Skill: [bun-browser-openclaw](https://clawhub.ai/yan5xu/bun-browser)
 
 ## 36 个平台，103 个命令
 
-社区驱动，通过 [bb-sites](https://github.com/epiral/bb-sites) 维护。每个命令一个 JS 文件。
+社区驱动，通过 [claw-bun-mcp](https://github.com/clawhubmx/claw-bun-mcp) 维护。每个命令一个 JS 文件。
 
 | 类别 | 平台 | 命令 |
 |------|------|------|

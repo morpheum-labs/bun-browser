@@ -21,7 +21,7 @@ bun-browser site <name> [args...]
 # 运行 adapter（完整写法）
 bun-browser site run <name> [args...]
 
-# 更新社区 adapter 库（从 github.com/epiral/bb-sites 拉取）
+# 更新社区 adapter 库（从 github.com/clawhubmx/claw-bun-mcp 拉取）
 bun-browser site update
 
 # 查看 adapter 开发指南
@@ -37,7 +37,7 @@ bun-browser guide
 bun-browser site reddit/thread https://www.reddit.com/r/LocalLLaMA/comments/...
 
 # 命名参数（--flag value 格式）
-bun-browser site github/pr-create epiral/bb-sites --title "feat: ..." --head "user:branch"
+bun-browser site github/pr-create clawhubmx/claw-bun-mcp --title "feat: ..." --head "user:branch"
 
 # 混合使用
 bun-browser site twitter/search "AI agent" --count 20
@@ -52,7 +52,7 @@ bun-browser site twitter/search "AI agent" --count 20
 ├── sites/              # 私有 adapter（优先级高，覆盖同名社区 adapter）
 │   └── platform/
 │       └── command.js
-└── bb-sites/           # 社区 adapter（通过 bun-browser site update 拉取）
+└── bb-sites/           # 社区 adapter（bun-browser site update → claw-bun-mcp）
     └── platform/
         └── command.js
 ```
@@ -259,4 +259,4 @@ bun-browser site twitter/search "AI" --json
 ## 更多信息
 
 - 创建自定义 adapter：参见 [adapter-development.md](adapter-development.md)
-- 社区 adapter 仓库：https://github.com/epiral/bb-sites
+- 社区 adapter 仓库：https://github.com/clawhubmx/claw-bun-mcp

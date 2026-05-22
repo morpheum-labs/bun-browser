@@ -19,3 +19,9 @@ export const SSE_RECONNECT_DELAY = 3000; // 3 秒
 
 /** SSE 最大重连尝试次数 */
 export const SSE_MAX_RECONNECT_ATTEMPTS = 5;
+
+/** Default community site adapter git repo (cloned to ~/.bun-browser/bb-sites) */
+export const DEFAULT_COMMUNITY_SITES_REPO = "https://github.com/clawhubmx/claw-bun-mcp.git";
+
+/** GitHub repo slug for adapter issues/PRs (owner/name) */
+export const DEFAULT_COMMUNITY_SITES_GH_REPO = "clawhubmx/claw-bun-mcp";

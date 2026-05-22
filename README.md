@@ -29,7 +29,7 @@ bun-browser site youtube/transcript VIDEO_ID      # full transcript
 bun-browser site stackoverflow/search "async"     # search SO questions
 ```
 
-**103 commands across 36 platforms.** All using your real browser's login state. [Full list →](https://github.com/epiral/bb-sites)
+**103 commands across 36 platforms.** All using your real browser's login state. [Full list →](https://github.com/clawhubmx/claw-bun-mcp)
 
 ## The idea
 
@@ -86,7 +86,7 @@ Skill on ClawHub: [bun-browser-openclaw](https://clawhub.ai/yan5xu/bun-browser)
 
 ## 36 platforms, 103 commands
 
-Community-driven via [bb-sites](https://github.com/epiral/bb-sites). One JS file per command.
+Community-driven via [claw-bun-mcp](https://github.com/clawhubmx/claw-bun-mcp). One JS file per command.
 
 | Category | Platforms | Commands |
 |----------|-----------|----------|

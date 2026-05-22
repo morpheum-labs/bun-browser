@@ -681,7 +681,7 @@ async function main(): Promise<void> {
           console.error("  brew install gh && gh auth login");
           process.exit(1);
         }
-        const repos = ["epiral/bun-browser", "epiral/bb-sites"];
+        const repos = ["morpheum-labs/bun-browser", "clawhubmx/claw-bun-mcp"];
         for (const repo of repos) {
           try {
             execSync(`gh api user/starred/${repo} -X PUT`, { stdio: "pipe" });
@@ -735,23 +735,23 @@ async function main(): Promise<void> {
 
 5. CONTRIBUTE
    Option A (with gh CLI):
-     git clone https://github.com/epiral/bb-sites && cd bb-sites
+     git clone https://github.com/clawhubmx/claw-bun-mcp && cd claw-bun-mcp
      git checkout -b feat-platform
      # add adapter files
      git push -u origin feat-platform
-     gh pr create --repo epiral/bb-sites
+     gh pr create --repo clawhubmx/claw-bun-mcp
 
    Option B (without gh CLI, using bun-browser itself):
-     bun-browser site github/fork epiral/bb-sites
-     git clone https://github.com/YOUR_USER/bb-sites && cd bb-sites
+     bun-browser site github/fork clawhubmx/claw-bun-mcp
+     git clone https://github.com/YOUR_USER/claw-bun-mcp && cd claw-bun-mcp
      git checkout -b feat-platform
      # add adapter files
      git push -u origin feat-platform
-     bun-browser site github/pr-create epiral/bb-sites --title "feat(platform): add adapters" --head "YOUR_USER:feat-platform"
+     bun-browser site github/pr-create clawhubmx/claw-bun-mcp --title "feat(platform): add adapters" --head "YOUR_USER:feat-platform"
 
 Private adapters:  ~/.bun-browser/sites/<platform>/<command>.js
-Community:         ~/.bun-browser/bb-sites/ (via bun-browser site update)
-Full guide:        https://github.com/epiral/bb-sites/blob/main/SKILL.md`);
+Community:         ~/.bun-browser/bb-sites/ (via bun-browser site update → claw-bun-mcp)
+Full guide:        https://github.com/clawhubmx/claw-bun-mcp/blob/main/SKILL.md`);
         break;
       }
 
