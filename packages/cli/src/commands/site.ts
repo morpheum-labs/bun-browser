@@ -18,20 +18,27 @@ import {
   DEFAULT_COMMUNITY_SITES_GH_REPO,
   DEFAULT_COMMUNITY_SITES_REPO,
   generateId,
-  resolveCommunitySitesDir,
-  type Request,
-  type Response,
-  type TabInfo,
+  getAllSites,
+  getCommunitySitesDir,
+  getLocalSitesDir,
+  findSite,
+  searchSites,
+  scanSites,
+  runSiteAdapter,
+  siteInfoPayload,
+  siteListPayload,
+  readSiteScriptBody,
+  type SiteMeta,
 } from "@bun-browser/shared";
 import { handleJqResponse, sendCommand } from "../client.js";
 import { getHistoryDomains } from "../history-sqlite.js";
 import { ensureDaemonRunning } from "../daemon-manager.js";
-import { readFileSync, readdirSync, existsSync, mkdirSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { execSync } from "node:child_process";
 
-const LOCAL_SITES_DIR = join(DAEMON_DIR, "sites");
-const COMMUNITY_SITES_DIR = resolveCommunitySitesDir(DAEMON_DIR);
+const LOCAL_SITES_DIR = getLocalSitesDir();
+const COMMUNITY_SITES_DIR = getCommunitySitesDir();
 const COMMUNITY_REPO = process.env.BUN_BROWSER_SITES_REPO ?? DEFAULT_COMMUNITY_SITES_REPO;
 const COMMUNITY_GH_REPO = process.env.BUN_BROWSER_SITES_GH_REPO ?? DEFAULT_COMMUNITY_SITES_GH_REPO;
 
@@ -51,25 +58,6 @@ export interface SiteOptions {
   days?: number;
   jq?: string;
   openclaw?: boolean;
-}
-
-/** Adapter 参数定义 */
-interface ArgDef {
-  required?: boolean;
-  description?: string;
-}
-
-/** Adapter 元数据 */
-interface SiteMeta {
-  name: string;
-  description: string;
-  domain: string;
-  args: Record<string, ArgDef>;
-  capabilities?: string[];
-  readOnly?: boolean;
-  example?: string;
-  filePath: string;
-  source: "local" | "community";
 }
 
 interface HistoryDomain {
@@ -94,98 +82,6 @@ function exitJsonError(error: string, extra: Record<string, unknown> = {}): neve
 }
 
 /**
- * 从 JS 文件的 /* @meta JSON * / 块解析元数据
- */
-function parseSiteMeta(filePath: string, source: "local" | "community"): SiteMeta | null {
-  let content: string;
-  try {
-    content = readFileSync(filePath, "utf-8");
-  } catch {
-    return null;
-  }
-
-  // 从文件路径推断默认 name
-  const sitesDir = source === "local" ? LOCAL_SITES_DIR : COMMUNITY_SITES_DIR;
-  const relPath = relative(sitesDir, filePath);
-  const defaultName = relPath.replace(/\.js$/, "").replace(/\\/g, "/");
-
-  // 解析 /* @meta { ... } */ 块
-  const metaMatch = content.match(/\/\*\s*@meta\s*\n([\s\S]*?)\*\//);
-  if (metaMatch) {
-    try {
-      const metaJson = JSON.parse(metaMatch[1]);
-      return {
-        name: metaJson.name || defaultName,
-        description: metaJson.description || "",
-        domain: metaJson.domain || "",
-        args: metaJson.args || {},
-        capabilities: metaJson.capabilities,
-        readOnly: metaJson.readOnly,
-        example: metaJson.example,
-        filePath,
-        source,
-      };
-    } catch {
-      // JSON 解析失败，回退到 @tag 模式
-    }
-  }
-
-  // 回退：解析 // @tag 格式（兼容旧格式）
-  const meta: SiteMeta = {
-    name: defaultName,
-    description: "",
-    domain: "",
-    args: {},
-    filePath,
-    source,
-  };
-
-  const tagPattern = /\/\/\s*@(\w+)[ \t]+(.*)/g;
-  let match;
-  while ((match = tagPattern.exec(content)) !== null) {
-    const [, key, value] = match;
-    switch (key) {
-      case "name": meta.name = value.trim(); break;
-      case "description": meta.description = value.trim(); break;
-      case "domain": meta.domain = value.trim(); break;
-      case "args":
-        for (const arg of value.trim().split(/[,\s]+/).filter(Boolean)) {
-          meta.args[arg] = { required: true };
-        }
-        break;
-      case "example": meta.example = value.trim(); break;
-    }
-  }
-
-  return meta;
-}
-
-/**
- * 扫描目录下所有 .js 文件
- */
-function scanSites(dir: string, source: "local" | "community"): SiteMeta[] {
-  if (!existsSync(dir)) return [];
-  const sites: SiteMeta[] = [];
-
-  function walk(currentDir: string): void {
-    let entries;
-    try { entries = readdirSync(currentDir, { withFileTypes: true }); } catch { return; }
-    for (const entry of entries) {
-      const fullPath = join(currentDir, entry.name);
-      if (entry.isDirectory() && !entry.name.startsWith(".")) {
-        walk(fullPath);
-      } else if (entry.isFile() && entry.name.endsWith(".js")) {
-        const meta = parseSiteMeta(fullPath, source);
-        if (meta) sites.push(meta);
-      }
-    }
-  }
-
-  walk(dir);
-  return sites;
-}
-
-/**
  * 根据 URL 检查是否有对应的 site adapter，返回提示文本
  */
 export function getSiteHintForDomain(url: string): string | null {
@@ -199,32 +95,6 @@ export function getSiteHintForDomain(url: string): string | null {
     return `该网站有 ${names.length} 个 site adapter 可直接获取数据，无需手动操作浏览器。试试: ${example}`;
   } catch {
     return null;
-  }
-}
-
-/**
- * 获取所有 adapter（私有优先）
- */
-function getAllSites(): SiteMeta[] {
-  const community = scanSites(COMMUNITY_SITES_DIR, "community");
-  const local = scanSites(LOCAL_SITES_DIR, "local");
-
-  const byName = new Map<string, SiteMeta>();
-  for (const s of community) byName.set(s.name, s);
-  for (const s of local) byName.set(s.name, s);
-
-  return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
-}
-
-/**
- * 精确匹配 tab 的 origin
- */
-function matchTabOrigin(tabUrl: string, domain: string): boolean {
-  try {
-    const tabOrigin = new URL(tabUrl).hostname;
-    return tabOrigin === domain || tabOrigin.endsWith("." + domain);
-  } catch {
-    return false;
   }
 }
 
@@ -245,10 +115,7 @@ function siteList(options: SiteOptions): void {
   }
 
   if (options.json) {
-    console.log(JSON.stringify(sites.map(s => ({
-      name: s.name, description: s.description, domain: s.domain,
-      args: s.args, source: s.source,
-    })), null, 2));
+    console.log(JSON.stringify(siteListPayload(), null, 2));
     return;
   }
 
@@ -272,13 +139,7 @@ function siteList(options: SiteOptions): void {
 }
 
 function siteSearch(query: string, options: SiteOptions): void {
-  const sites = getAllSites();
-  const q = query.toLowerCase();
-  const matches = sites.filter(s =>
-    s.name.toLowerCase().includes(q) ||
-    s.description.toLowerCase().includes(q) ||
-    s.domain.toLowerCase().includes(q)
-  );
+  const matches = searchSites(query);
 
   if (matches.length === 0) {
     if (options.json) {
@@ -371,7 +232,7 @@ function siteUpdate(options: SiteOptions = {}): void {
 }
 
 function findSiteByName(name: string): SiteMeta | undefined {
-  return getAllSites().find((site) => site.name === name);
+  return findSite(name);
 }
 
 function siteInfo(name: string, options: SiteOptions): void {
@@ -386,14 +247,7 @@ function siteInfo(name: string, options: SiteOptions): void {
     process.exit(1);
   }
 
-  const meta = {
-    name: site.name,
-    description: site.description,
-    domain: site.domain,
-    args: site.args,
-    example: site.example,
-    readOnly: site.readOnly,
-  };
+  const meta = siteInfoPayload(site);
 
   if (options.json) {
     console.log(JSON.stringify(meta, null, 2));
@@ -590,14 +444,8 @@ async function siteRun(
   }
 
   // 读取并解析 JS
-  const jsContent = readFileSync(site.filePath, "utf-8");
-
-  // 移除 /* @meta ... */ 块，保留函数体
-  const jsBody = jsContent.replace(/\/\*\s*@meta[\s\S]*?\*\//, "").trim();
-
-  // 构造执行脚本
+  const jsBody = readSiteScriptBody(site.filePath);
   const argsJson = JSON.stringify(argMap);
-  const script = `(${jsBody})(${argsJson})`;
 
   if (options.openclaw) {
     const { ocGetTabs, ocFindTabByDomain, ocOpenTab, ocEvaluate } = await import("../openclaw-bridge.js");
@@ -662,103 +510,43 @@ async function siteRun(
 
   await ensureDaemonRunning();
 
-  // 确定目标 tab
-  let targetTabId: number | undefined = options.tabId;
+  const result = await runSiteAdapter(
+    (request) => sendCommand(request),
+    site,
+    argMap,
+    { tabId: options.tabId },
+  );
 
-  // 如果用户没指定 --tab，自动查找匹配域名的 tab
-  if (!targetTabId && site.domain) {
-    const listReq: Request = { id: generateId(), action: "tab_list" };
-    const listResp: Response = await sendCommand(listReq);
-
-    if (listResp.success && listResp.data?.tabs) {
-      const matchingTab = listResp.data.tabs.find((tab: TabInfo) =>
-        matchTabOrigin(tab.url, site.domain)
-      );
-      if (matchingTab) {
-        targetTabId = matchingTab.tabId;
-      }
-    }
-
-    if (!targetTabId) {
-      const newResp = await sendCommand({
-        id: generateId(),
-        action: "tab_new",
-        url: `https://${site.domain}`,
-      });
-      targetTabId = newResp.data?.tabId;
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-    }
-  }
-
-  // 执行
-  const evalReq: Request = { id: generateId(), action: "eval", script, tabId: targetTabId };
-  const evalResp: Response = await sendCommand(evalReq);
-
-  if (!evalResp.success) {
-    const hint = site.domain
-      ? `Open https://${site.domain} in your browser, make sure you are logged in, then retry.`
-      : undefined;
-    if (options.json) {
-      console.log(JSON.stringify({ id: evalReq.id, success: false, error: evalResp.error || "eval failed", hint }));
-    } else {
-      console.error(`[error] site ${name}: ${evalResp.error || "eval failed"}`);
-      if (hint) console.error(`  Hint: ${hint}`);
-    }
-    process.exit(1);
-  }
-
-  const result = evalResp.data?.result;
-  if (result === undefined || result === null) {
-    if (options.json) {
-      console.log(JSON.stringify({ id: evalReq.id, success: true, data: null }));
-    } else {
-      console.log("(no output)");
-    }
-    return;
-  }
-
-  // 解析输出
-  let parsed: unknown;
-  try {
-    parsed = typeof result === "string" ? JSON.parse(result) : result;
-  } catch {
-    parsed = result;
-  }
-
-  // 检查 adapter 返回的 error
-  if (typeof parsed === "object" && parsed !== null && "error" in parsed) {
-    const errObj = parsed as { error: string; hint?: string };
-
-    // 检测是否为登录问题（检查 error 和 hint 文本）
-    const checkText = `${errObj.error} ${errObj.hint || ""}`;
-    const isAuthError = /401|403|unauthorized|forbidden|not.?logged|login.?required|sign.?in|auth/i.test(checkText);
-    const loginHint = isAuthError && site.domain
-      ? `Please log in to https://${site.domain} in your browser first, then retry.`
-      : undefined;
-    const hint = loginHint || errObj.hint;
+  if (!result.success) {
     const reportHint = `If this is an adapter bug, report via: gh issue create --repo ${COMMUNITY_GH_REPO} --title "[${name}] <description>" OR: bun-browser site github/issue-create ${COMMUNITY_GH_REPO} --title "[${name}] <description>"`;
-
     if (options.json) {
-      console.log(JSON.stringify({ id: evalReq.id, success: false, error: errObj.error, hint, reportHint }));
+      console.log(JSON.stringify({
+        id: result.id,
+        success: false,
+        error: result.error,
+        hint: result.hint,
+        reportHint,
+      }));
     } else {
-      console.error(`[error] site ${name}: ${errObj.error}`);
-      if (hint) console.error(`  Hint: ${hint}`);
+      console.error(`[error] site ${name}: ${result.error}`);
+      if (result.hint) console.error(`  Hint: ${result.hint}`);
       console.error(`  Report: gh issue create --repo ${COMMUNITY_GH_REPO} --title "[${name}] ..."`);
       console.error(`     or: bun-browser site github/issue-create ${COMMUNITY_GH_REPO} --title "[${name}] ..."`);
     }
     process.exit(1);
   }
 
+  const parsed = result.data;
+
   if (options.jq) {
     const { applyJq } = await import("../jq.js");
-    // Tolerate ".data." prefix — Agent may copy from --json envelope structure
     const expr = options.jq.replace(/^\.data\./, '.');
     const results = applyJq(parsed, expr);
     for (const r of results) {
       console.log(typeof r === "string" ? r : JSON.stringify(r));
     }
   } else if (options.json) {
-    console.log(JSON.stringify({ id: evalReq.id, success: true, data: parsed }));
+    console.log(JSON.stringify({ id: result.id, success: true, data: parsed }));
   } else {
     console.log(JSON.stringify(parsed, null, 2));
   }

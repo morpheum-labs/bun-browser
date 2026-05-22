@@ -50,3 +50,31 @@ export {
   isProcessAlive,
   httpJson,
 } from "./daemon-client.js";
+
+export {
+  type SiteArgDef,
+  type SiteMeta,
+  getLocalSitesDir,
+  getCommunitySitesDir,
+  parseSiteMeta,
+  scanSites,
+  getAllSites,
+  findSite,
+  searchSites,
+  siteInfoPayload,
+  siteListPayload,
+  readSiteScriptBody,
+  buildSiteEvalScript,
+  normalizeSiteArgs,
+  validateSiteArgs,
+} from "./site-registry.js";
+
+export {
+  type SiteDispatch,
+  type SiteRunOptions,
+  type SiteRunSuccess,
+  type SiteRunFailure,
+  type SiteRunResult,
+  resolveSiteTabId,
+  runSiteAdapter,
+} from "./site-runner.js";

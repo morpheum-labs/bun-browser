@@ -93,6 +93,11 @@ Endpoints:
   POST /command      Send command and get result (via CDP)
   GET  /status       Daemon health + per-tab stats
   POST /shutdown     Graceful shutdown
+  GET  /site         List site adapters
+  GET  /site/search?q=   Search adapters
+  GET  /site/info?name=  Adapter metadata
+  POST /site/run     Run adapter (JSON body)
+  POST /site/adapters/:name   Run adapter by path
 `);
     process.exit(0);
   }

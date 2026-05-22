@@ -5,6 +5,12 @@
  *   POST /command   — receive Request, dispatch via CDP, return Response
  *   GET  /status    — daemon health + per-tab stats
  *   POST /shutdown  — graceful shutdown
+ *   GET  /site      — list site adapters (claw-bun-mcp + local)
+ *   GET  /site/search?q= — search adapters
+ *   GET  /site/info?name= — adapter metadata
+ *   GET  /site/adapters/:name — adapter metadata (path form)
+ *   POST /site/run  — run adapter { name, args?, tabId? }
+ *   POST /site/adapters/:name — run adapter { args?, tabId? }
  *
  * Bearer token authentication (optional, but enforced when token is set).
  * Two-phase startup: HTTP server starts immediately, CDP connects async.
@@ -12,10 +18,11 @@
  */
 
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from "node:http";
-import type { Request } from "@bun-browser/shared";
+import type { Request, Response } from "@bun-browser/shared";
 import { COMMAND_TIMEOUT, DAEMON_PORT } from "@bun-browser/shared";
 import { CdpConnection } from "./cdp-connection.js";
 import { dispatchRequest } from "./command-dispatch.js";
+import { SiteHttpHandler } from "./site-http.js";
 
 export interface HttpServerOptions {
   host?: string;
@@ -37,6 +44,7 @@ export class HttpServer {
   private readonly cdpPort: number | null;
   private readonly onShutdown?: () => void;
   private startTime = 0;
+  private readonly siteHandler: SiteHttpHandler;
 
   constructor(options: HttpServerOptions) {
     this.host = options.host ?? "127.0.0.1";
@@ -46,6 +54,9 @@ export class HttpServer {
     this.cdpHost = options.cdpHost ?? null;
     this.cdpPort = options.cdpPort ?? null;
     this.onShutdown = options.onShutdown;
+    this.siteHandler = new SiteHttpHandler({
+      executeCommand: (request) => this.executeCommand(request),
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -112,6 +123,8 @@ export class HttpServer {
 
     const url = req.url ?? "/";
 
+    if (this.siteHandler.handle(req, res, url)) return;
+
     if (req.method === "POST" && url === "/command") {
       this.handleCommand(req, res);
     } else if (req.method === "GET" && url === "/status") {
@@ -124,6 +137,27 @@ export class HttpServer {
   }
 
   // ---------------------------------------------------------------------------
+  // Shared command execution (CDP dispatch + readiness wait)
+  // ---------------------------------------------------------------------------
+
+  private async executeCommand(request: Request): Promise<Response> {
+    if (!this.cdp.connected) {
+      await Promise.race([
+        this.cdp.waitUntilReady(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("CDP connection timeout")), COMMAND_TIMEOUT),
+        ),
+      ]);
+    }
+
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Command timeout")), COMMAND_TIMEOUT),
+    );
+
+    return Promise.race([dispatchRequest(this.cdp, request), timeout]);
+  }
+
+  // ---------------------------------------------------------------------------
   // POST /command
   // ---------------------------------------------------------------------------
 
@@ -131,44 +165,38 @@ export class HttpServer {
     try {
       const body = await this.readBody(req);
       const request = JSON.parse(body) as Request;
-
-      // Wait for CDP to be ready (two-phase startup)
-      if (!this.cdp.connected) {
-        try {
-          await Promise.race([
-            this.cdp.waitUntilReady(),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("CDP connection timeout")), COMMAND_TIMEOUT),
-            ),
-          ]);
-        } catch {
-          const cdpTarget = `${this.cdp.host}:${this.cdp.port}`;
-          const reason = this.cdp.lastError || "unknown";
-          this.sendJson(res, 503, {
-            id: request.id,
-            success: false,
-            error: `Chrome not connected (CDP at ${cdpTarget})`,
-            reason,
-            hint: "Make sure Chrome is running. Try: bun-browser daemon shutdown && bun-browser tab list",
-          });
-          return;
-        }
+      const response = await this.executeCommandWithCdpError(request, res);
+      if (response) {
+        this.sendJson(res, 200, response);
       }
-
-      // Dispatch with timeout
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Command timeout")), COMMAND_TIMEOUT),
-      );
-      const response = await Promise.race([
-        dispatchRequest(this.cdp, request),
-        timeout,
-      ]);
-      this.sendJson(res, 200, response);
     } catch (error) {
       this.sendJson(res, 400, {
         success: false,
         error: error instanceof Error ? error.message : "Invalid request",
       });
+    }
+  }
+
+  private async executeCommandWithCdpError(
+    request: Request,
+    res: ServerResponse,
+  ): Promise<Response | null> {
+    try {
+      return await this.executeCommand(request);
+    } catch (error) {
+      if (!this.cdp.connected) {
+        const cdpTarget = `${this.cdp.host}:${this.cdp.port}`;
+        const reason = this.cdp.lastError || "unknown";
+        this.sendJson(res, 503, {
+          id: request.id,
+          success: false,
+          error: `Chrome not connected (CDP at ${cdpTarget})`,
+          reason,
+          hint: "Make sure Chrome is running. Try: bun-browser daemon shutdown && bun-browser tab list",
+        });
+        return null;
+      }
+      throw error;
     }
   }
 
