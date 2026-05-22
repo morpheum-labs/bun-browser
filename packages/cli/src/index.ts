@@ -750,7 +750,7 @@ async function main(): Promise<void> {
      bun-browser site github/pr-create clawhubmx/claw-bun-mcp --title "feat(platform): add adapters" --head "YOUR_USER:feat-platform"
 
 Private adapters:  ~/.bun-browser/sites/<platform>/<command>.js
-Community:         ~/.bun-browser/bb-sites/ (via bun-browser site update → claw-bun-mcp)
+Community:         ~/.bun-browser/claw-bun-mcp/ (via bun-browser site update → claw-bun-mcp)
 Full guide:        https://github.com/clawhubmx/claw-bun-mcp/blob/main/SKILL.md`);
         break;
       }

@@ -52,7 +52,7 @@ bun-browser site twitter/search "AI agent" --count 20
 ├── sites/              # 私有 adapter（优先级高，覆盖同名社区 adapter）
 │   └── platform/
 │       └── command.js
-└── bb-sites/           # 社区 adapter（bun-browser site update → claw-bun-mcp）
+└── claw-bun-mcp/       # 社区 adapter（bun-browser site update → claw-bun-mcp）
     └── platform/
         └── command.js
 ```

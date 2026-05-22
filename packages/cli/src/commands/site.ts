@@ -9,14 +9,16 @@
  *   bun-browser site update                    更新社区 adapter 库
  *
  * 目录：
- *   ~/.bun-browser/sites/       私有 adapter（优先）
- *   ~/.bun-browser/bb-sites/    社区 adapter（bun-browser site update 拉取 claw-bun-mcp）
+ *   ~/.bun-browser/sites/           私有 adapter（优先）
+ *   ~/.bun-browser/claw-bun-mcp/    社区 adapter（bun-browser site update 拉取 claw-bun-mcp）
  */
 
 import {
+  DAEMON_DIR,
   DEFAULT_COMMUNITY_SITES_GH_REPO,
   DEFAULT_COMMUNITY_SITES_REPO,
   generateId,
+  resolveCommunitySitesDir,
   type Request,
   type Response,
   type TabInfo,
@@ -26,12 +28,10 @@ import { getHistoryDomains } from "../history-sqlite.js";
 import { ensureDaemonRunning } from "../daemon-manager.js";
 import { readFileSync, readdirSync, existsSync, mkdirSync } from "node:fs";
 import { join, relative } from "node:path";
-import { homedir } from "node:os";
 import { execSync } from "node:child_process";
 
-const BB_DIR = join(homedir(), ".bun-browser");
-const LOCAL_SITES_DIR = join(BB_DIR, "sites");
-const COMMUNITY_SITES_DIR = join(BB_DIR, "bb-sites");
+const LOCAL_SITES_DIR = join(DAEMON_DIR, "sites");
+const COMMUNITY_SITES_DIR = resolveCommunitySitesDir(DAEMON_DIR);
 const COMMUNITY_REPO = process.env.BUN_BROWSER_SITES_REPO ?? DEFAULT_COMMUNITY_SITES_REPO;
 const COMMUNITY_GH_REPO = process.env.BUN_BROWSER_SITES_GH_REPO ?? DEFAULT_COMMUNITY_SITES_GH_REPO;
 
@@ -304,7 +304,7 @@ function siteSearch(query: string, options: SiteOptions): void {
 }
 
 function siteUpdate(options: SiteOptions = {}): void {
-  mkdirSync(BB_DIR, { recursive: true });
+  mkdirSync(DAEMON_DIR, { recursive: true });
   const updateMode = existsSync(join(COMMUNITY_SITES_DIR, ".git")) ? "pull" : "clone";
 
   if (updateMode === "pull") {
@@ -320,12 +320,12 @@ function siteUpdate(options: SiteOptions = {}): void {
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      const manualAction = "cd ~/.bun-browser/bb-sites && git pull";
+      const manualAction = `cd ${COMMUNITY_SITES_DIR} && git pull`;
       if (options.json) {
         exitJsonError(`更新失败: ${message}`, { action: manualAction, updateMode });
       }
       console.error(`更新失败: ${e instanceof Error ? e.message : e}`);
-      console.error("  手动修复: cd ~/.bun-browser/bb-sites && git pull");
+      console.error(`  手动修复: cd ${COMMUNITY_SITES_DIR} && git pull`);
       process.exit(1);
     }
   } else {
@@ -341,12 +341,12 @@ function siteUpdate(options: SiteOptions = {}): void {
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      const manualAction = `git clone ${COMMUNITY_REPO} ~/.bun-browser/bb-sites`;
+      const manualAction = `git clone ${COMMUNITY_REPO} ${COMMUNITY_SITES_DIR}`;
       if (options.json) {
         exitJsonError(`克隆失败: ${message}`, { action: manualAction, updateMode });
       }
       console.error(`克隆失败: ${e instanceof Error ? e.message : e}`);
-      console.error(`  手动修复: git clone ${COMMUNITY_REPO} ~/.bun-browser/bb-sites`);
+      console.error(`  手动修复: git clone ${COMMUNITY_REPO} ${COMMUNITY_SITES_DIR}`);
       process.exit(1);
     }
   }

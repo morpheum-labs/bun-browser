@@ -38,6 +38,7 @@ import {
   isProcessAlive,
   httpJson,
 } from "../packages/shared/src/daemon-client.ts";
+import { resolveCommunitySitesDir } from "../packages/shared/src/community-sites-path.ts";
 import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { unlink, readFile as readFileAsync } from "node:fs/promises";
 import { execFile } from "node:child_process";
@@ -76,7 +77,7 @@ const VIEWER_API_BASE = `http://127.0.0.1:${VIEWER_PORT}`;
 let viewerProcess: ReturnType<typeof spawn> | null = null;
 
 const LOCAL_SITES_DIR = join(SHARED_DAEMON_DIR, "sites");
-const COMMUNITY_SITES_DIR = join(SHARED_DAEMON_DIR, "bb-sites");
+const COMMUNITY_SITES_DIR = resolveCommunitySitesDir(SHARED_DAEMON_DIR);
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
