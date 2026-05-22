@@ -1,0 +1,1283 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "bun-browser Daemon HTTP API",
+    "version": "1.0.0",
+    "description": "HTTP API exposed by the bun-browser daemon. Browser automation uses POST /command (CDP). Site adapters (claw-bun-mcp) use GET/POST /site/*.\n\nBearer token is required when the daemon is started with a token (default). Read token from `~/.bun-browser/daemon.json`.\n\nAdapter names may contain slashes (e.g. `grok/agents`). Prefer `GET /site/info?name=...` and `POST /site/run` with a JSON body for such names; path form `/site/adapters/grok/agents` is also supported.",
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:19824",
+      "description": "Default local daemon (DAEMON_PORT)"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Daemon",
+      "description": "Health, lifecycle, and low-level browser commands"
+    },
+    {
+      "name": "Site",
+      "description": "Discover and run site adapters (claw-bun-mcp + local overrides)"
+    }
+  ],
+  "paths": {
+    "/status": {
+      "get": {
+        "tags": ["Daemon"],
+        "summary": "Daemon health and per-tab stats",
+        "operationId": "getStatus",
+        "responses": {
+          "200": {
+            "description": "Daemon is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DaemonStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/command": {
+      "post": {
+        "tags": ["Daemon"],
+        "summary": "Execute a browser command via CDP",
+        "description": "Dispatches a protocol Request to Chrome. Commands queue until CDP is connected. Returns 503 if Chrome is not connected.",
+        "operationId": "postCommand",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON or request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "503": {
+            "description": "Chrome / CDP not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CdpUnavailableError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shutdown": {
+      "post": {
+        "tags": ["Daemon"],
+        "summary": "Graceful daemon shutdown",
+        "operationId": "postShutdown",
+        "responses": {
+          "200": {
+            "description": "Shutdown initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShutdownResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/site": {
+      "get": {
+        "tags": ["Site"],
+        "summary": "List installed site adapters",
+        "operationId": "listSiteAdapters",
+        "responses": {
+          "200": {
+            "description": "Adapter catalog from ~/.bun-browser/claw-bun-mcp and ~/.bun-browser/sites",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
+        }
+      }
+    },
+    "/site/list": {
+      "get": {
+        "tags": ["Site"],
+        "summary": "List installed site adapters (alias)",
+        "operationId": "listSiteAdaptersAlias",
+        "responses": {
+          "200": {
+            "description": "Same as GET /site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Wrong HTTP method (e.g. POST) — use GET",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteRouteNotFound"
+                }
+              }
+            }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
+        }
+      }
+    },
+    "/site/search": {
+      "get": {
+        "tags": ["Site"],
+        "summary": "Search adapters by name, description, or domain",
+        "operationId": "searchSiteAdapters",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search query (empty string returns no matches)",
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching adapters with full metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteSearchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
+        }
+      }
+    },
+    "/site/info": {
+      "get": {
+        "tags": ["Site"],
+        "summary": "Adapter metadata (args, example, domain)",
+        "operationId": "getSiteAdapterInfo",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "description": "Adapter name, e.g. grok/agents or twitter/search",
+            "schema": {
+              "type": "string",
+              "example": "grok/agents"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Adapter found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing name query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Unknown adapter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteAdapterNotFound"
+                }
+              }
+            }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
+        }
+      }
+    },
+    "/site/adapters/{adapterName}": {
+      "get": {
+        "tags": ["Site"],
+        "summary": "Adapter metadata (path form)",
+        "description": "Everything after `/site/adapters/` is the adapter name (URL-decoded). Example: `/site/adapters/grok/agents` → name `grok/agents`.",
+        "operationId": "getSiteAdapterInfoByPath",
+        "parameters": [
+          {
+            "name": "adapterName",
+            "in": "path",
+            "required": true,
+            "description": "Adapter name; may include slashes",
+            "schema": {
+              "type": "string",
+              "example": "grok/agents"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Adapter found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Empty adapter name in path",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Unknown adapter or unknown route under /site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SiteAdapterNotFound"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SiteRouteNotFound"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Site"],
+        "summary": "Run adapter (path form)",
+        "description": "Adapter name is taken from the path; request body supplies `args` and optional `tabId` only.",
+        "operationId": "runSiteAdapterByPath",
+        "parameters": [
+          {
+            "name": "adapterName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "grok/agents"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteRunBodyPath"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Adapter run succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteRunSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid JSON body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Unknown adapter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteAdapterNotFound"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Adapter or validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteRunFailure"
+                }
+              }
+            }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
+        }
+      }
+    },
+    "/site/run": {
+      "post": {
+        "tags": ["Site"],
+        "summary": "Run adapter by name in JSON body",
+        "operationId": "runSiteAdapter",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteRunBody"
+              },
+              "examples": {
+                "grokAgents": {
+                  "summary": "List Grok project agents",
+                  "value": {
+                    "name": "grok/agents",
+                    "args": {}
+                  }
+                },
+                "grokAgentChat": {
+                  "summary": "Chat in a project agent",
+                  "value": {
+                    "name": "grok/agent-chat",
+                    "args": {
+                      "agent": "agent-uuid",
+                      "prompt": "Summarize this project"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Adapter run succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteRunSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing name or invalid JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Unknown adapter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteAdapterNotFound"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Adapter or validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteRunFailure"
+                }
+              }
+            }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Token from ~/.bun-browser/daemon.json (field `token`). Omit only if daemon was started without a token."
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid Bearer token",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/UnauthorizedError"
+            }
+          }
+        }
+      },
+      "MethodNotAllowed": {
+        "description": "HTTP method not supported for this /site route",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/SiteError"
+            },
+            "example": {
+              "success": false,
+              "error": "Method not allowed"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "UnauthorizedError": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Unauthorized"
+          }
+        }
+      },
+      "SimpleError": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "DaemonNotFound": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Not found"
+          }
+        },
+        "description": "Unknown non-/site path (no success field)"
+      },
+      "ShutdownResponse": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 0
+          },
+          "message": {
+            "type": "string",
+            "example": "Shutting down"
+          }
+        }
+      },
+      "DaemonStatusResponse": {
+        "type": "object",
+        "required": ["running", "cdpConnected", "uptime", "tabs"],
+        "properties": {
+          "running": {
+            "type": "boolean",
+            "example": true
+          },
+          "cdpConnected": {
+            "type": "boolean"
+          },
+          "cdpHost": {
+            "type": "string",
+            "nullable": true
+          },
+          "cdpPort": {
+            "type": "integer",
+            "nullable": true
+          },
+          "uptime": {
+            "type": "integer",
+            "description": "Seconds since HTTP server started"
+          },
+          "currentSeq": {
+            "type": "integer",
+            "description": "Global monotonic sequence counter"
+          },
+          "currentTargetId": {
+            "type": "string",
+            "nullable": true
+          },
+          "tabs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DaemonTabStats"
+            }
+          }
+        }
+      },
+      "DaemonTabStats": {
+        "type": "object",
+        "required": [
+          "shortId",
+          "targetId",
+          "networkRequests",
+          "consoleMessages",
+          "jsErrors",
+          "lastActionSeq"
+        ],
+        "properties": {
+          "shortId": {
+            "type": "string",
+            "description": "Short tab ID used in command responses"
+          },
+          "targetId": {
+            "type": "string",
+            "description": "CDP targetId"
+          },
+          "networkRequests": {
+            "type": "integer"
+          },
+          "consoleMessages": {
+            "type": "integer"
+          },
+          "jsErrors": {
+            "type": "integer"
+          },
+          "lastActionSeq": {
+            "type": "integer"
+          }
+        }
+      },
+      "ActionType": {
+        "type": "string",
+        "enum": [
+          "open",
+          "snapshot",
+          "click",
+          "hover",
+          "fill",
+          "type",
+          "check",
+          "uncheck",
+          "select",
+          "get",
+          "screenshot",
+          "close",
+          "wait",
+          "press",
+          "scroll",
+          "back",
+          "forward",
+          "refresh",
+          "eval",
+          "tab_list",
+          "tab_new",
+          "tab_select",
+          "tab_close",
+          "frame",
+          "frame_main",
+          "dialog",
+          "network",
+          "console",
+          "errors",
+          "trace",
+          "history"
+        ]
+      },
+      "CommandRequest": {
+        "type": "object",
+        "required": ["id", "action"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Client-generated request ID"
+          },
+          "action": {
+            "$ref": "#/components/schemas/ActionType"
+          },
+          "url": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string",
+            "description": "Element ref from snapshot (@N)"
+          },
+          "text": {
+            "type": "string"
+          },
+          "attribute": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "Screenshot file path"
+          },
+          "interactive": {
+            "type": "boolean"
+          },
+          "compact": {
+            "type": "boolean"
+          },
+          "maxDepth": {
+            "type": "integer"
+          },
+          "script": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "index": {
+            "type": "integer"
+          },
+          "tabId": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Tab index/id or daemon short tab ID"
+          },
+          "selector": {
+            "type": "string"
+          },
+          "dialogResponse": {
+            "type": "string",
+            "enum": ["accept", "dismiss"]
+          },
+          "promptText": {
+            "type": "string"
+          },
+          "networkCommand": {
+            "type": "string",
+            "enum": ["requests", "route", "unroute", "clear"]
+          },
+          "routeOptions": {
+            "type": "object",
+            "properties": {
+              "abort": {
+                "type": "boolean"
+              },
+              "body": {
+                "type": "string"
+              },
+              "status": {
+                "type": "integer"
+              },
+              "headers": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "filter": {
+            "type": "string"
+          },
+          "withBody": {
+            "type": "boolean"
+          },
+          "consoleCommand": {
+            "type": "string",
+            "enum": ["get", "clear"]
+          },
+          "errorsCommand": {
+            "type": "string",
+            "enum": ["get", "clear"]
+          },
+          "traceCommand": {
+            "type": "string",
+            "enum": ["start", "stop", "status"]
+          },
+          "historyCommand": {
+            "type": "string",
+            "enum": ["search", "domains"]
+          },
+          "key": {
+            "type": "string"
+          },
+          "modifiers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "direction": {
+            "type": "string"
+          },
+          "pixels": {
+            "type": "integer"
+          },
+          "waitType": {
+            "type": "string"
+          },
+          "ms": {
+            "type": "integer"
+          },
+          "since": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string",
+                "enum": ["last_action"]
+              }
+            ]
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method filter for network requests"
+          },
+          "status": {
+            "type": "string",
+            "description": "HTTP status filter (e.g. 4xx, 5xx, 404)"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        }
+      },
+      "CommandResponse": {
+        "type": "object",
+        "required": ["id", "success"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ResponseData"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "ResponseData": {
+        "type": "object",
+        "description": "Action-specific payload; see packages/shared/src/protocol.ts",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "tabId": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "tab": {
+            "type": "string",
+            "description": "Daemon short tab ID"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "cursor": {
+            "type": "integer",
+            "description": "Observation query cursor for since= incremental reads"
+          },
+          "snapshotData": {
+            "type": "object",
+            "properties": {
+              "snapshot": {
+                "type": "string"
+              },
+              "refs": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "value": {
+            "type": "string"
+          },
+          "screenshotPath": {
+            "type": "string"
+          },
+          "dataUrl": {
+            "type": "string"
+          },
+          "result": {},
+          "tabs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TabInfo"
+            }
+          },
+          "activeIndex": {
+            "type": "integer"
+          },
+          "networkRequests": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "consoleMessages": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "jsErrors": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "TabInfo": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "tabId": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "tab": {
+            "type": "string",
+            "description": "Short tab ID in daemon mode"
+          }
+        }
+      },
+      "CdpUnavailableError": {
+        "type": "object",
+        "required": ["id", "success", "error"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "example": "Chrome not connected (CDP at 127.0.0.1:9222)"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          }
+        }
+      },
+      "SiteArgDef": {
+        "type": "object",
+        "properties": {
+          "required": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "SiteAdapterSummary": {
+        "type": "object",
+        "required": ["name", "description", "domain", "args", "source"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "grok/agents"
+          },
+          "description": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string",
+            "example": "grok.com"
+          },
+          "args": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SiteArgDef"
+            }
+          },
+          "source": {
+            "type": "string",
+            "enum": ["local", "community"]
+          },
+          "readOnly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SiteAdapterDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SiteAdapterSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "example": {
+                "type": "string",
+                "example": "bun-browser site grok/agents"
+              },
+              "capabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "SiteListResponse": {
+        "type": "object",
+        "required": ["success", "adapters"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "adapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteAdapterSummary"
+            }
+          }
+        }
+      },
+      "SiteSearchResponse": {
+        "type": "object",
+        "required": ["success", "query", "adapters"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "query": {
+            "type": "string"
+          },
+          "adapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteAdapterDetail"
+            }
+          }
+        }
+      },
+      "SiteInfoResponse": {
+        "type": "object",
+        "required": ["success", "adapter"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "adapter": {
+            "$ref": "#/components/schemas/SiteAdapterDetail"
+          }
+        }
+      },
+      "SiteRunBody": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Adapter name, e.g. grok/agent-chat",
+            "example": "grok/agents"
+          },
+          "args": {
+            "type": "object",
+            "additionalProperties": true,
+            "default": {}
+          },
+          "tabId": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Target tab; daemon picks/opens domain tab if omitted"
+          }
+        }
+      },
+      "SiteRunBodyPath": {
+        "type": "object",
+        "properties": {
+          "args": {
+            "type": "object",
+            "additionalProperties": true,
+            "default": {}
+          },
+          "tabId": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      "SiteRunSuccess": {
+        "type": "object",
+        "required": ["success", "id", "data"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "data": {
+            "description": "Adapter-specific JSON; shape varies per adapter"
+          },
+          "tab": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "seq": {
+            "type": "integer"
+          }
+        }
+      },
+      "SiteRunFailure": {
+        "type": "object",
+        "required": ["success", "id", "error"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": false
+          },
+          "id": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string",
+            "description": "Human-readable remediation"
+          },
+          "tab": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      "SiteError": {
+        "type": "object",
+        "required": ["success", "error"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": false
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "SiteRouteNotFound": {
+        "type": "object",
+        "required": ["success", "error"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": false
+          },
+          "error": {
+            "type": "string",
+            "const": "Not found"
+          }
+        },
+        "description": "Path under /site but not a registered route (e.g. POST /site/list, trailing slash)"
+      },
+      "SiteAdapterNotFound": {
+        "type": "object",
+        "required": ["success", "error", "action"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": false
+          },
+          "error": {
+            "type": "string",
+            "example": "adapter \"grok/foo\" not found"
+          },
+          "action": {
+            "type": "string",
+            "example": "GET /site/list"
+          }
+        }
+      }
+    }
+  },
+  "x-readme": {
+    "cliEquivalents": "See api-example.md and AGENTS.md",
+    "sourceTypes": "packages/shared/src/protocol.ts, packages/daemon/src/http-server.ts, packages/daemon/src/site-http.ts"
+  }
+}
