@@ -538,10 +538,10 @@ function encodeOutput(value: unknown): Uint8Array {
 /** Run a site adapter via CLI */
 function runSiteCli(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile("bun-browser", ["site", ...args], { timeout: 30000, encoding: "utf8" }, (err, stdout, stderr) => {
+    execFile("bun-browser", ["site", ...args], { timeout: COMMAND_TIMEOUT, encoding: "utf8" }, (err, stdout, stderr) => {
       if (err) {
         const distPath = new URL("../dist/cli.js", import.meta.url).pathname;
-        execFile("node", [distPath, "site", ...args], { timeout: 30000, encoding: "utf8" }, (err2, stdout2, stderr2) => {
+        execFile("node", [distPath, "site", ...args], { timeout: COMMAND_TIMEOUT, encoding: "utf8" }, (err2, stdout2, stderr2) => {
           if (err2) reject(new Error(stdout2.trim() || stderr2 || err2.message));
           else resolve(stdout2.trim());
         });

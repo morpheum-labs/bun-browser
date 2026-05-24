@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
+import { COMMAND_TIMEOUT } from "@bun-browser/shared";
 import { parseOpenClawJson } from "./openclaw-json.js";
 
-const OPENCLAW_EVALUATE_TIMEOUT_MS = 120000;
+const OPENCLAW_EVALUATE_TIMEOUT_MS = COMMAND_TIMEOUT;
 const EXEC_TIMEOUT_BUFFER_MS = 5000;
 
 export interface OCTab {

@@ -346,7 +346,7 @@ Example success:
 }
 ```
 
-`agent-chat` may take 30–90 seconds; the daemon command timeout is 30s by default — for long replies, ensure the adapter completes within that window or increase `COMMAND_TIMEOUT` at build time.
+`agent-chat` may take 30–90 seconds; the daemon command timeout is 15 minutes by default — for long replies, ensure the adapter completes within that window or increase `COMMAND_TIMEOUT` at build time.
 
 ---
 
