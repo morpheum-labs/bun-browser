@@ -12,7 +12,7 @@ export const DAEMON_HOST = "127.0.0.1";
 export const SSE_HEARTBEAT_INTERVAL = 15000; // 15 秒
 
 /** 命令执行超时时间（毫秒） */
-export const COMMAND_TIMEOUT = 30000; // 30 秒
+export const COMMAND_TIMEOUT = 15 * 60 * 1000; // 15 分钟
 
 /** SSE 重连延迟（毫秒） */
 export const SSE_RECONNECT_DELAY = 3000; // 3 秒
