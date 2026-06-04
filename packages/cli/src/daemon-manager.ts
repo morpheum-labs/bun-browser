@@ -16,7 +16,7 @@ import {
   isProcessAlive,
   httpJson,
 } from "@bun-browser/shared";
-import { discoverCdpPort } from "./cdp-discovery.js";
+import { discoverCdpPort, findBrowserExecutable } from "./cdp-discovery.js";
 
 // ---------------------------------------------------------------------------
 // Cached state
@@ -97,12 +97,23 @@ export async function ensureDaemon(): Promise<void> {
   }
 
   // Discover CDP port (auto-launches Chrome if needed)
+  const browserExecutable = findBrowserExecutable();
   const cdpInfo = await discoverCdpPort();
   if (!cdpInfo) {
+    if (browserExecutable) {
+      throw new Error(
+        "bun-browser: Found a browser but failed to start CDP.\n\n" +
+        `Detected: ${browserExecutable}\n\n` +
+        "Please do one of the following:\n" +
+        "  1. Start it manually: chromium --remote-debugging-port=19825\n" +
+        "  2. Set BUN_BROWSER_CDP_URL=http://127.0.0.1:19825\n" +
+        "  3. On Ubuntu snap Chromium, profile data is stored under ~/snap/chromium/common/bun-browser/",
+      );
+    }
     throw new Error(
       "bun-browser: Cannot find a Chromium-based browser.\n\n" +
       "Please do one of the following:\n" +
-      "  1. Install Google Chrome, Edge, or Brave\n" +
+      "  1. Install Google Chrome, Chromium, Edge, or Brave\n" +
       "  2. Start Chrome with: google-chrome --remote-debugging-port=19825\n" +
       "  3. Set BUN_BROWSER_CDP_URL=http://host:port",
     );

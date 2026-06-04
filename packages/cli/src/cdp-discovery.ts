@@ -84,6 +84,25 @@ async function canConnect(host: string, port: number): Promise<boolean> {
   }
 }
 
+function isSnapChromium(executable: string): boolean {
+  if (process.platform !== "linux") {
+    return false;
+  }
+  if (executable.includes("/snap/bin/")) {
+    return true;
+  }
+  const baseName = path.basename(executable);
+  return (baseName === "chromium-browser" || baseName === "chromium") && existsSync("/snap/bin/chromium");
+}
+
+export function getManagedUserDataDir(executable: string): string {
+  if (isSnapChromium(executable)) {
+    // Snap Chromium is confined by AppArmor and cannot write to ~/.bun-browser/.
+    return path.join(os.homedir(), "snap", "chromium", "common", "bun-browser", "user-data");
+  }
+  return MANAGED_USER_DATA_DIR;
+}
+
 export function findBrowserExecutable(): string | null {
   if (process.platform === "darwin") {
     const candidates = [
@@ -151,10 +170,11 @@ export async function launchManagedBrowser(port: number = DEFAULT_CDP_PORT): Pro
     return null;
   }
 
-  await mkdir(MANAGED_USER_DATA_DIR, { recursive: true });
+  const userDataDir = getManagedUserDataDir(executable);
+  await mkdir(userDataDir, { recursive: true });
 
   // Set profile name so the Chrome window shows "bun-browser" in the title bar
-  const defaultProfileDir = path.join(MANAGED_USER_DATA_DIR, "Default");
+  const defaultProfileDir = path.join(userDataDir, "Default");
   const prefsPath = path.join(defaultProfileDir, "Preferences");
   await mkdir(defaultProfileDir, { recursive: true });
   try {
@@ -168,7 +188,7 @@ export async function launchManagedBrowser(port: number = DEFAULT_CDP_PORT): Pro
 
   const args = [
     `--remote-debugging-port=${port}`,
-    `--user-data-dir=${MANAGED_USER_DATA_DIR}`,
+    `--user-data-dir=${userDataDir}`,
     "--no-first-run",
     "--no-default-browser-check",
     "--disable-sync",
