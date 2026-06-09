@@ -38,7 +38,7 @@ COPY package.json bun.lock ./
 COPY turbo.json tsconfig.base.json tsup.config.ts ./
 COPY packages ./packages
 COPY bin ./bin
-COPY docker-bun-install.sh ./
+COPY scripts/docker-bun-install.sh ./
 RUN bash docker-bun-install.sh \
     && bun run build \
     && printf '%s\n' '#!/bin/sh' 'exec bun /app/dist/cli.js "$@"' > /usr/local/bin/bun-browser \

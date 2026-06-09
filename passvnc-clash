@@ -5,6 +5,7 @@ FROM oven/bun:${BUN_VERSION}-debian
 
 # google-chrome-stable is not in default Debian repos; Google only publishes amd64 for Linux.
 # Install Chrome (amd64) or Chromium (other arches) + Xvfb + x11vnc + noVNC + Nginx (for auth)
+# + clash-for-linux deps (curl, tar, gzip, iproute2 for ss)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates gnupg wget \
     && set -eux; \
@@ -22,6 +23,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fi \
     && apt-get install -y --no-install-recommends \
     git \
+    curl \
+    tar \
+    gzip \
+    unzip \
+    iproute2 \
     xvfb \
     x11vnc \
     novnc \
@@ -32,6 +38,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 \
     libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 \
     && rm -rf /var/lib/apt/lists/*
+
+# clash-for-linux: install Mihomo + clashctl (no subscription at build time)
+RUN git clone --branch master --depth 1 \
+      https://github.com/wnlen/clash-for-linux.git /opt/clash-for-linux \
+    && cd /opt/clash-for-linux \
+    && printf '\n' | bash install.sh
 
 WORKDIR /app
 
@@ -48,14 +60,15 @@ RUN bash docker-bun-install.sh \
     && printf '%s\n' '#!/bin/sh' 'exec bun /app/dist/provider.js "$@"' > /usr/local/bin/bun-browser-provider \
     && chmod +x /usr/local/bin/bun-browser /usr/local/bin/bun-browser-mcp /usr/local/bin/bun-browser-provider
 
-COPY scripts/entrance.sh /app/entrance.sh
+COPY scripts/entrance-clash.sh /app/entrance-clash.sh
 
-# Persistent Chrome profile (your real session holder)
+# Persistent Chrome profile + clash runtime (subscriptions, config.yaml)
 VOLUME /chrome-profile
+VOLUME /opt/clash-for-linux/runtime
 
-# VNC_USERNAME / VNC_PASSWORD: set at runtime (e.g. compose.yml environment), not in the image
+# VNC_USERNAME / VNC_PASSWORD / SUBSCRIPTION: set at runtime (e.g. compose.yml), not in the image
 
 EXPOSE 19824 9222 6080
 
-# Start everything with authentication
-CMD ["bash", "/app/entrance.sh"]
+# Start VNC + clash proxy + Chrome with --proxy-server + bun-browser daemon
+CMD ["bash", "/app/entrance-clash.sh"]

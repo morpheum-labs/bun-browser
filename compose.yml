@@ -10,11 +10,34 @@ services:
     ports:
       - "19824:19824"   # daemon / MCP / CLI
       - "9222:9222"     # CDP (debug)
-      - "6080:6080"     # noVNC web GUI (nginx basic auth via entrance.sh)
+      - "6080:6080"     # noVNC web GUI (nginx basic auth via scripts/entrance.sh)
     volumes:
       - chrome-profile:/chrome-profile
     shm_size: 2gb
     restart: unless-stopped
 
+  # passvnc-clash: authenticated VNC + clash-for-linux proxy + Chrome --proxy-server
+  # Uncomment and set SUBSCRIPTION to use. Default proxy: socks5://127.0.0.1:7890
+  # bun-browser-clash:
+  #   build:
+  #     context: .
+  #     dockerfile: passvnc-clash
+  #   container_name: bun-browser-clash
+  #   environment:
+  #     VNC_USERNAME: admin
+  #     VNC_PASSWORD: dumdumdum
+  #     SUBSCRIPTION: "https://your-subscription-url"
+  #     # PROXY_SERVER: "socks5://127.0.0.1:7891"
+  #   ports:
+  #     - "19824:19824"
+  #     - "9222:9222"
+  #     - "6080:6080"
+  #   volumes:
+  #     - chrome-profile:/chrome-profile
+  #     - clash-runtime:/opt/clash-for-linux/runtime
+  #   shm_size: 2gb
+  #   restart: unless-stopped
+
 volumes:
   chrome-profile:
+  clash-runtime:
