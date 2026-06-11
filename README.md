@@ -172,6 +172,64 @@ bun-browser daemon --host 127.0.0.1    # IPv4 only (fix macOS IPv6 issues)
 bun-browser daemon --host 0.0.0.0      # listen on all interfaces (for Tailscale / ZeroTier remote access)
 ```
 
+## HTTP API
+
+The daemon exposes the same capabilities over HTTP — use it from scripts, backends, or any language without shelling out to the CLI.
+
+**Base URL:** `http://127.0.0.1:19824` (same host/port as above)
+
+**Auth:** every request needs a Bearer token from `~/.bun-browser/daemon.json`:
+
+```bash
+export BUN_BROWSER_TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.bun-browser/daemon.json')))['token'])")
+export BUN_BROWSER_HOST=http://127.0.0.1:19824
+```
+
+Two API layers:
+
+| Layer | Endpoints | What it does |
+|-------|-----------|--------------|
+| **Site adapters** | `GET/POST /site/*` | Run `bun-browser site …` commands — list, search, inspect, and execute adapters |
+| **Browser automation** | `POST /command`, `GET /status` | Low-level CDP commands — open, snapshot, click, fetch, network, etc. |
+
+### Site adapters
+
+```bash
+# List adapters
+curl -s "$BUN_BROWSER_HOST/site" -H "Authorization: Bearer $BUN_BROWSER_TOKEN"
+
+# Inspect args and example
+curl -s "$BUN_BROWSER_HOST/site/info?name=zhihu/hot" \
+  -H "Authorization: Bearer $BUN_BROWSER_TOKEN"
+
+# Run an adapter (same as: bun-browser site zhihu/hot)
+curl -s -X POST "$BUN_BROWSER_HOST/site/run" \
+  -H "Authorization: Bearer $BUN_BROWSER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"zhihu/hot","args":{}}'
+```
+
+Adapter names can contain slashes (e.g. `grok/agent-chat`). Use `POST /site/run` with a JSON body, or the path form `POST /site/adapters/grok/agent-chat`.
+
+Successful runs return `{ "success": true, "data": { … }, "tab": "abc1", "seq": 42 }`. Adapter errors return HTTP 422 with `{ "error", "hint", "action" }` — same structured errors as the CLI.
+
+### Browser automation
+
+```bash
+# Health check
+curl -s "$BUN_BROWSER_HOST/status" -H "Authorization: Bearer $BUN_BROWSER_TOKEN"
+
+# List tabs (same as: bun-browser tab list)
+curl -s -X POST "$BUN_BROWSER_HOST/command" \
+  -H "Authorization: Bearer $BUN_BROWSER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"1","action":"tab_list"}'
+```
+
+Request/response types are defined in `packages/shared/src/protocol.ts`. Commands queue until Chrome/CDP is connected; returns 503 if the browser is unavailable.
+
+**Full reference:** [OpenAPI spec](docs/openapi.json) · [Grok adapter walkthrough](docs/api-example.md)
+
 ## Architecture
 
 ```
