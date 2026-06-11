@@ -5,6 +5,7 @@
 import { generateId, type Request, type Response, type TabInfo } from "./protocol.js";
 import {
   buildSiteEvalScript,
+  findSite,
   normalizeSiteArgs,
   validateSiteArgs,
   type SiteMeta,
@@ -45,12 +46,114 @@ function matchTabOrigin(tabUrl: string, domain: string): boolean {
   }
 }
 
+const NOTION_BUSY_PROBE_SCRIPT = `(async function() {
+  function hasCookie(name) {
+    return document.cookie.split(';').some(function(c) {
+      return c.trim().startsWith(name + '=');
+    });
+  }
+  if (!hasCookie('notion_user_id') || !hasCookie('notion_users')) {
+    return { busy: false, loggedIn: false, url: location.href };
+  }
+  var h = globalThis.__notionAiChatHelpers;
+  if (h && h.isChatInProgress) {
+    return {
+      busy: h.isChatInProgress(),
+      generating: h.isGenerating ? h.isGenerating() : false,
+      conversationId: h.getConversationId ? h.getConversationId() : null,
+      loggedIn: true,
+      helpersLoaded: true,
+      url: location.href
+    };
+  }
+  var text = (document.body && (document.body.innerText || document.body.textContent) || '').slice(-12000);
+  if (/Notion AI finished/i.test(text)) {
+    return { busy: false, loggedIn: true, helpersLoaded: false, url: location.href };
+  }
+  var busy = /exploring|computing|thought|thinking|searching|reading files|running tool|generating|writing file|loading web page|loaded web page|called function|searched the web|browsing|fetch(?:ing)? (?:top|recent)/i.test(text);
+  return { busy: busy, loggedIn: true, helpersLoaded: false, url: location.href };
+})()`;
+
+function domainOpenUrl(domain: string): string {
+  if (domain === "app.notion.com") return `https://${domain}/ai`;
+  return `https://${domain}`;
+}
+
+async function probeNotionTabBusy(
+  dispatch: SiteDispatch,
+  tabId: number | string,
+): Promise<boolean> {
+  const probe = findSite("notion/tab-probe");
+  const script = probe ? buildSiteEvalScript(probe.filePath, {}) : NOTION_BUSY_PROBE_SCRIPT;
+  const resp = await dispatch({
+    id: generateId(),
+    action: "eval",
+    script,
+    tabId,
+  });
+  if (!resp.success) return true;
+  const parsed = parseAdapterResult(resp.data?.result);
+  if (typeof parsed === "object" && parsed !== null && "busy" in parsed) {
+    return !!(parsed as { busy: boolean }).busy;
+  }
+  return false;
+}
+
+async function openDomainTab(
+  dispatch: SiteDispatch,
+  domain: string,
+  tabOpenWaitMs: number,
+): Promise<number | string | undefined> {
+  const newResp = await dispatch({
+    id: generateId(),
+    action: "tab_new",
+    url: domainOpenUrl(domain),
+  });
+  if (!newResp.success) {
+    throw new Error(newResp.error || "tab_new failed");
+  }
+
+  if (tabOpenWaitMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, tabOpenWaitMs));
+  }
+
+  return newResp.data?.tabId;
+}
+
+async function resolveAutoSiteTabId(
+  dispatch: SiteDispatch,
+  site: SiteMeta,
+  tabOpenWaitMs: number,
+): Promise<number | string | undefined> {
+  if (!site.domain) return undefined;
+
+  const listResp = await dispatch({ id: generateId(), action: "tab_list" });
+  const matchingTabs =
+    listResp.success && listResp.data?.tabs
+      ? listResp.data.tabs.filter((tab: TabInfo) => matchTabOrigin(tab.url, site.domain))
+      : [];
+
+  if (site.domain === "app.notion.com") {
+    for (const tab of matchingTabs) {
+      const busy = await probeNotionTabBusy(dispatch, tab.tabId);
+      if (!busy) return tab.tabId;
+    }
+    return openDomainTab(dispatch, site.domain, tabOpenWaitMs);
+  }
+
+  if (matchingTabs.length > 0) return matchingTabs[0].tabId;
+  return openDomainTab(dispatch, site.domain, tabOpenWaitMs);
+}
+
 export async function resolveSiteTabId(
   dispatch: SiteDispatch,
   site: SiteMeta,
   tabId?: number | string,
   tabOpenWaitMs = 3000,
 ): Promise<number | string | undefined> {
+  if (tabId === "auto") {
+    return resolveAutoSiteTabId(dispatch, site, tabOpenWaitMs);
+  }
   if (tabId !== undefined) return tabId;
   if (!site.domain) return undefined;
 
@@ -62,20 +165,7 @@ export async function resolveSiteTabId(
     if (matchingTab) return matchingTab.tabId;
   }
 
-  const newResp = await dispatch({
-    id: generateId(),
-    action: "tab_new",
-    url: `https://${site.domain}`,
-  });
-  if (!newResp.success) {
-    throw new Error(newResp.error || "tab_new failed");
-  }
-
-  if (tabOpenWaitMs > 0) {
-    await new Promise((resolve) => setTimeout(resolve, tabOpenWaitMs));
-  }
-
-  return newResp.data?.tabId;
+  return openDomainTab(dispatch, site.domain, tabOpenWaitMs);
 }
 
 function parseAdapterResult(result: unknown): unknown {
