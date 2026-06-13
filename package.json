@@ -1,6 +1,6 @@
 {
   "name": "bun-browser",
-  "version": "0.11.6",
+  "version": "0.11.7",
   "description": "Your browser is the API. CLI + MCP server for AI agents to control Chrome with your login state.",
   "type": "module",
   "bin": {
@@ -15,7 +15,9 @@
     "README.md",
     "LICENSE"
   ],
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build": "bun node_modules/turbo/bin/turbo run build && bun run build:release",
     "build:release": "bunx --bun tsup",
