@@ -11,8 +11,8 @@
 # Usage:
 #   bash scripts/docker-build.sh
 #   bash scripts/docker-build.sh [tag]
-#   bash scripts/docker-build.sh [--push] [tag]
-#   bash scripts/docker-build.sh --variant nopass|passvnc|passvnc-clash [--push] [tag]
+#   bash scripts/docker-build.sh [--no-push] [tag]
+#   bash scripts/docker-build.sh --variant nopass|passvnc|passvnc-clash [--no-push] [tag]
 #
 # Default tag (when [tag] omitted): short git commit hash (git rev-parse --short HEAD).
 #
@@ -24,7 +24,7 @@
 #   BUN_VERSION         Bun base image version (default: 1.3.14, see oven/bun on Docker Hub)
 #   SKIP_BUILD          If 1, skip build and only tag/push existing local image
 #
-# Environment — push (--push):
+# Environment — push (default; use --no-push to skip):
 #   DOCKER_SPACE_SORA   Registry username or full path (e.g. myuser or ghcr.io/myorg)
 #   DOCKER_TOKEN_SORA   Registry password or token (stdin to docker login)
 #
@@ -34,13 +34,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 
 IMAGE_NAME="bunbrowser"
-PUSH=0
+PUSH=1
 TAG=""
 VARIANT=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --push) PUSH=1; shift ;;
+    --no-push) PUSH=0; shift ;;
     --variant)
       if [[ -z "${2:-}" ]]; then
         echo "Error: --variant requires nopass, passvnc, or passvnc-clash" >&2
@@ -134,7 +134,7 @@ DOCKER_REGISTRY="${DOCKER_SPACE_SORA:-}"
 DOCKER_TOKEN="${DOCKER_TOKEN_SORA:-}"
 
 if [[ -z "${DOCKER_REGISTRY}" || -z "${DOCKER_TOKEN}" ]]; then
-  echo "Error: --push requires DOCKER_SPACE_SORA and DOCKER_TOKEN_SORA" >&2
+  echo "Error: push requires DOCKER_SPACE_SORA and DOCKER_TOKEN_SORA (use --no-push to skip)" >&2
   exit 1
 fi
 
