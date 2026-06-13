@@ -772,6 +772,7 @@ export async function dispatchRequest(
     case "eval": {
       if (!request.script) return fail(request.id, "Missing script parameter");
       const seq = tab.recordAction();
+      await cdp.activateTarget(target.id);
       const result = await cdp.evaluate<unknown>(target.id, request.script, true);
       return ok(request.id, {
         result,
@@ -832,7 +833,7 @@ export async function dispatchRequest(
 
       if (!selected) return fail(request.id, "Tab not found");
       cdp.currentTargetId = selected.id;
-      await cdp.attachAndEnable(selected.id);
+      await cdp.activateTarget(selected.id);
       const selTab = cdp.tabManager.getTab(selected.id);
       return ok(request.id, {
         tabId: selected.id,

@@ -553,6 +553,13 @@ export class CdpConnection {
     return this.sessions.has(targetId);
   }
 
+  /** Bring a page target to the foreground (Chrome window + tab). */
+  async activateTarget(targetId: string): Promise<void> {
+    await this.browserCommand("Target.activateTarget", { targetId }).catch(() => {});
+    await this.attachAndEnable(targetId);
+    await this.pageCommand(targetId, "Page.bringToFront", {}).catch(() => {});
+  }
+
   // ---------------------------------------------------------------------------
   // CDP command sending
   // ---------------------------------------------------------------------------
